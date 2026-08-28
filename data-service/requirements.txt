@@ -1,0 +1,4 @@
+fastapi==0.115.*
+uvicorn[standard]==0.32.*
+python-tds==1.15.*
+pyjwt[crypto]==2.10.*

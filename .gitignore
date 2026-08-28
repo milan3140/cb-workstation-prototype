@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+__pycache__/
+*.pyc
+.venv/
+data-service/_data/
+.DS_Store
+*.log
+
+# demo 資料是刻意進版控的(原型要能 clone 就跑),不要在這裡排除 web/public/*.json

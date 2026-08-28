@@ -1,0 +1,141 @@
+diff --git a/node_modules/klinecharts/dist/index.esm.js b/node_modules/klinecharts/dist/index.esm.js
+index df1c973..4a62ca1 100644
+--- a/node_modules/klinecharts/dist/index.esm.js
++++ b/node_modules/klinecharts/dist/index.esm.js
+@@ -6733,25 +6733,52 @@ var Canvas = /** @class */ (function () {
+     };
+     Canvas.prototype._executeListener = function (fn) {
+         var _this = this;
++        // PATCH(jump-fix v4 · 座標系分歧根治):原版在「本幀已排程 rAF」時會【直接丟棄 fn】——
++        // 連續 live resize(拖欄)時,_resetPixelRatio 傳進來的「同步點陣圖尺寸」回呼被丟掉;
++        // 之後 update() 的 _width 已等於新值 → 永遠走 same 分支 → 點陣圖永久停在舊寬,
++        // 被瀏覽器拉伸到新 CSS 寬 → K 棒整體被水平縮放,與 convertToPixel(畫線所用)變成
++        // 兩個比例的座標系。修法:fn 一律入佇列,於同一幀依序執行,絕不丟棄。
++        if (!this._pendingFns) this._pendingFns = [];
++        if (fn) this._pendingFns.push(fn);
+         if (this._requestAnimationId === DEFAULT_REQUEST_ID) {
+             this._requestAnimationId = requestAnimationFrame(function () {
+                 _this._ctx.clearRect(0, 0, _this._width, _this._height);
+-                fn === null || fn === void 0 ? void 0 : fn();
++                var fns = _this._pendingFns || [];
++                _this._pendingFns = [];
++                for (var i = 0; i < fns.length; i++) { try { fns[i](); } catch (e) { /* noop */ } }
+                 _this._listener();
+                 _this._requestAnimationId = DEFAULT_REQUEST_ID;
+             });
+         }
+     };
+     Canvas.prototype.update = function (w, h) {
+-        if (this._width !== w || this._height !== h) {
++        // PATCH(Signal/mimir 2026-08-24 根治版):以「差 < 1px 視為同尺寸」的容差判斷,取代原本的嚴格 !==。
++        //
++        // 根因:縮放副圖後,candle pane 拿到「小數」高度(如 359.45);但 _resetPixelRatio 內部是讀
++        // clientWidth/clientHeight(瀏覽器回傳「整數」)寫回 this._width/_height。於是每次捲動:
++        //   update(359.45) → _width(整數 359) !== 359.45 → 判尺寸變 → 走 resize 分支 →
++        //   _resetPixelRatio 又把 _width 寫回 359 → 下次 update(359.45) 再度不等 → 無限重蹈。
++        // 小數 w 與整數 clientWidth 永遠對不上 → update 永遠卡在 resize 分支、永遠進不了正常的「same」
++        // 重繪路徑。凍結(candle 不重繪)與比例跑掉(resize 分支首格用未同步的 scale)都是這個死結的
++        // 兩種表徵;先前 .19/.21 都在壞掉的 resize 分支裡補症狀,故此消彼長。
++        //
++        // 修法:sub-pixel 差異(< 1px,即縮放造成的小數殘差)一律視為「同尺寸」,落進與正常捲動
++        // 完全相同、本來就正確的 _executeListener 重繪路徑。真正的尺寸變動(拖曳縮放,差 ≥ 1px)
++        // 仍照常走 resize 分支做完整 pixel/scale 重設。整數高度的軸畫布行為不變(差 0 → same)。
++        // PATCH(jump-fix v4 附加保險):same 分支前先驗「點陣圖 vs 預期尺寸」。任何原因造成的
++        // 點陣圖失步(歷史丟棄/競態)都會在下一次 update 自癒,壞狀態不可能長存。
++        var pixelRatio0 = getPixelRatio(this._element);
++        var bitmapStale = Math.abs(this._element.width - Math.round(w * pixelRatio0)) > 1 ||
++            Math.abs(this._element.height - Math.round(h * pixelRatio0)) > 1;
++        if (bitmapStale || Math.abs(this._width - w) >= 1 || Math.abs(this._height - h) >= 1) {
++            this._width = w;
++            this._height = h;
+             this._element.style.width = "".concat(w, "px");
+             this._element.style.height = "".concat(h, "px");
+-            if (!this._supportedDevicePixelContentBox) {
+-                var pixelRatio = getPixelRatio(this._element);
+-                this._nextPixelWidth = Math.round(w * pixelRatio);
+-                this._nextPixelHeight = Math.round(h * pixelRatio);
+-                this._resetPixelRatio();
+-            }
++            var pixelRatio = getPixelRatio(this._element);
++            this._nextPixelWidth = Math.round(w * pixelRatio);
++            this._nextPixelHeight = Math.round(h * pixelRatio);
++            this._resetPixelRatio();
+         }
+         else {
+             this._executeListener();
+@@ -13743,6 +13770,16 @@ var Event = /** @class */ (function () {
+     };
+     Event.prototype.mouseDownEvent = function (e) {
+         var e_1, _a;
++        // PATCH(jump-fix v3): 每個新手勢一律先歸零上一手勢的所有錨點。
++        // touchEnd/mouseUp 的清理只在放手落在 widget 內才會執行(widget===null 整段跳過),
++        // 且跨 widget 滑動時各 case 互不重設對方的錨點——舊錨點被下一手勢撿到
++        // → 主圖瞬移(_startScrollCoordinate 殘留)/ Y 軸亂縮(_yAxisStartScaleDistance 殘留)。
++        this._startScrollCoordinate = null;
++        this._prevYAxisRanges.clear();
++        this._xAxisStartScaleCoordinate = null;
++        this._xAxisStartScaleDistance = 0;
++        this._xAxisScale = 1;
++        this._yAxisStartScaleDistance = 0;
+         var _b = this._findWidgetByEvent(e), pane = _b.pane, widget = _b.widget;
+         this._mouseDownWidget = widget;
+         if (widget !== null) {
+@@ -13954,6 +13991,13 @@ var Event = /** @class */ (function () {
+     Event.prototype.touchStartEvent = function (e) {
+         var e_2, _a;
+         var _b;
++        // PATCH(jump-fix v3): 同 mouseDownEvent——新手勢起點無條件重置全部錨點(理由見彼處)。
++        this._startScrollCoordinate = null;
++        this._prevYAxisRanges.clear();
++        this._xAxisStartScaleCoordinate = null;
++        this._xAxisStartScaleDistance = 0;
++        this._xAxisScale = 1;
++        this._yAxisStartScaleDistance = 0;
+         var _c = this._findWidgetByEvent(e), pane = _c.pane, widget = _c.widget;
+         if (widget !== null) {
+             var event_8 = this._makeWidgetEvent(e, widget);
+@@ -13962,6 +14006,14 @@ var Event = /** @class */ (function () {
+             switch (name_8) {
+                 case WidgetNameConstants.MAIN: {
+                     var chartStore = this._chart.getChartStore();
++                    // PATCH(jump-fix): 新觸控一律先殺殘留 fling + 清舊起始座標。
++                    // 否則被消費的 mouseDown 走下方 early-return,會留著上一手勢的 _startScrollCoordinate,
++                    // 下一次 pressedMove 用舊基準算出 distance = 現在x - 舊x → 圖瞬間大跳。
++                    if (this._flingScrollRequestId !== null) {
++                        cancelAnimationFrame(this._flingScrollRequestId);
++                        this._flingScrollRequestId = null;
++                    }
++                    this._startScrollCoordinate = null;
+                     if (widget.dispatchEvent('mouseDownEvent', event_8)) {
+                         this._touchCancelCrosshair = true;
+                         this._touchCoordinate = null;
+@@ -14090,6 +14142,8 @@ var Event = /** @class */ (function () {
+                             flingScroll_1();
+                         }
+                     }
++                    // PATCH(jump-fix): touchend 後清掉起始座標,不留舊值給下一觸(fling 速度上面已算完,清除安全)
++                    this._startScrollCoordinate = null;
+                     return true;
+                 }
+                 case WidgetNameConstants.X_AXIS:
+@@ -14155,6 +14209,20 @@ var Event = /** @class */ (function () {
+     Event.prototype._processMainScrollingEvent = function (widget, event) {
+         var e_3, _a;
+         var _b;
++        // PATCH(jump-fix v3): 手勢從其他 widget(如 Y 軸)滑入主圖時,本手勢沒有起點
++        // → 以當下手指位置重新定錨、重抓 Y 範圍快照,從構造上排除「沿用舊手勢起點」的瞬移。
++        if (this._startScrollCoordinate === null) {
++            this._startScrollCoordinate = { x: event.x, y: event.y };
++            this._chart.getChartStore().startScroll();
++            var yAxesRebase = widget.getPane().getYAxisComponents();
++            for (var ri = 0; ri < yAxesRebase.length; ri++) {
++                var yAxisRebase = yAxesRebase[ri];
++                if (!yAxisRebase.getAutoCalcTickFlag()) {
++                    this._prevYAxisRanges.set(yAxisRebase, __assign({}, yAxisRebase.getRange()));
++                }
++            }
++            return;
++        }
+         if (this._startScrollCoordinate !== null) {
+             var yAxes = widget.getPane().getYAxisComponents();
+             try {

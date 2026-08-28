@@ -1,0 +1,1265 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   CB 工作站 策略雷達 — 重設計方向(mockup 核准版)落地
+   研究驅動:深紫 elevation 分層(--l0..l3)、紫金收斂成 accent、hero 突出、
+   禁卡片(1px 分隔線+留白)、漸進揭露抽屜。一律引用 tokens.css。
+   ═══════════════════════════════════════════════════════════════════════ */
+* { box-sizing: border-box; margin: 0; padding: 0 }
+html, body { height: 100% }
+body {
+  background: var(--l0);
+  color: var(--ink-hi);
+  font-family: var(--font-sans);
+  font-size: var(--fs-sub);
+  line-height: 1.45;
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer }
+svg { display: block }
+::selection { background: var(--gold); color: var(--ink-on-gold) }
+:focus-visible { outline: 2px solid var(--brand-lift); outline-offset: 2px; border-radius: 3px }
+
+.app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden }
+
+/* ═══ 第 1 列:品牌字標 + 搜尋 ═══ */
+.bar1 {
+  position: relative; overflow: visible; z-index: 5;
+  display: flex; align-items: center; gap: 16px; padding: 0 var(--gutter); height: 62px; flex: 0 0 auto;
+  background: linear-gradient(180deg, var(--brand-wash), transparent);
+}
+.deco { position: absolute; pointer-events: none; z-index: 0 }
+/* 右上角櫻花裝飾:小巧的角落點綴,往右上收、降透明,不垂到內容/搜尋 */
+.deco-tr { top: -14px; right: -26px; width: 112px; opacity: .34 }
+.brand { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px }
+/* 官方 signal.example.com 徽章:deep-purple 圓底 + 2px 金框 + 白鑽 */
+.brand-badge {
+  display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; flex: 0 0 auto;
+  background: #0B0B0D; border: 2px solid var(--gold); padding: 6px;
+}
+.brand-badge img { width: 100%; height: 100%; object-fit: contain; display: block }
+.brand-word {
+  font-family: var(--font-display); font-size: 16.5px; font-weight: 600;
+  letter-spacing: .15em; text-transform: uppercase; color: var(--ink-hi); white-space: nowrap;
+}
+.brand-word i { font-style: normal; color: var(--gold); margin: 0 .55em; font-weight: 400; opacity: .9 }
+
+/* ── 右上使用者選單(登入後顯示;chip → 下拉 切換帳號/登出) ── */
+.usermenu { position: relative; z-index: 2; margin-left: auto; flex: 0 0 auto }
+.usermenu-btn {
+  display: flex; align-items: center; gap: 7px; height: 36px; padding: 0 10px 0 11px;
+  border-radius: 999px; border: 1px solid var(--line-strong); background: var(--glass);
+  color: var(--ink-hi); font-size: 13.5px; cursor: pointer;
+  transition: background .18s var(--ease), border-color .18s var(--ease);
+}
+.usermenu-btn:hover { background: var(--glass-hi, rgba(255,255,255,.08)); border-color: var(--gold) }
+.usermenu-btn .um-nick { max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.usermenu-btn .um-caret { opacity: .7; transition: transform .2s var(--ease) }
+.usermenu-btn[aria-expanded="true"] .um-caret { transform: rotate(180deg) }
+.usermenu-drop {
+  position: absolute; top: calc(100% + 8px); right: 0; min-width: 180px;
+  background: var(--surface, #131316); border: 1px solid var(--line-strong); border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0,0,0,.45); padding: 6px; z-index: 60;
+  transform-origin: top right; animation: pop-in .16s var(--ease);
+}
+.usermenu-drop .um-head {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px 9px; color: var(--ink-mid);
+  font-size: 12.5px; border-bottom: 1px solid var(--line); margin-bottom: 4px;
+}
+.usermenu-drop button {
+  display: flex; align-items: center; gap: 9px; width: 100%; padding: 9px 10px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--ink-hi);
+  font-size: 13.5px; text-align: left; cursor: pointer; transition: background .14s var(--ease);
+}
+.usermenu-drop button:hover { background: rgba(255,255,255,.07) }
+.usermenu-drop button.um-logout { color: var(--up) }
+.usermenu-drop button.um-logout:hover { background: color-mix(in srgb, var(--up) 14%, transparent) }
+.grow { flex: 1 }
+.search {
+  display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; width: 260px;
+  border: 1px solid var(--line-strong); border-radius: var(--r-full); color: var(--ink-low); font-size: var(--fs-label);
+  transition: border-color var(--t-hover) var(--ease);
+}
+.search:focus-within { border-color: rgba(216, 219, 224, .55); color: var(--ink-mid) }
+.search svg { width: 17px; height: 17px; flex: 0 0 auto }
+.search input {
+  flex: 1; min-width: 0; background: none; border: 0; outline: 0;
+  color: var(--ink-hi); font: inherit;
+}
+.search input::placeholder { color: var(--ink-low) }
+.search .sx { display: flex; color: var(--ink-low); transition: color var(--t-hover) var(--ease) }
+.search .sx:hover { color: var(--ink-hi) }
+
+/* ═══ 第 2 列:6 Tabs(當前=金底線,非膠囊) ═══ */
+.bar2 {
+  display: flex; align-items: stretch; padding: 0 calc(var(--gutter) - 6px); height: 52px; flex: 0 0 auto;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.bar2 .tabs { display: flex; align-items: stretch; gap: 2px; min-width: 0; position: relative }
+.bar2 .search { margin-left: auto; align-self: center; flex: 0 0 auto }
+.tab {
+  display: flex; align-items: center; gap: 7px; padding: 0 14px; font-size: var(--fs-sub);
+  color: var(--ink-low); position: relative; transition: color .15s var(--ease); white-space: nowrap;
+}
+.tab svg { width: 18px; height: 18px; opacity: .85 }
+.tab .ct { font-size: var(--fs-label); font-weight: 600 }
+.tab:hover { color: var(--ink-mid) }
+.tab.on { color: var(--ink-hi) }
+.tab.on .ct { color: var(--gold) }
+/* 策略 tab 滑動金色底線(切換平滑滑移;取代原本各 tab 靜態 ::after)*/
+.tab-ind {
+  position: absolute; left: 0; bottom: -1px; height: 2px; border-radius: 2px;
+  background: var(--gold); pointer-events: none;
+  transition: transform .3s cubic-bezier(.32,.72,0,1), width .3s cubic-bezier(.32,.72,0,1), opacity .2s;
+}
+
+/* ═══ 第 3 列:篩選 chips + 條件摘要 ═══ */
+.bar3 {
+  display: flex; align-items: center; gap: 8px; padding: 0 var(--gutter); height: 52px; flex: 0 0 auto;
+  border-bottom: 1px solid var(--line);
+}
+
+/* ── 精選訊號頁內型態 chip 列(可橫滑 pill;型態當篩選,不當底部 tab)── */
+/* 型態 chips:與「我的關注」清單 tab 同款設計(透明 tab + 金框滑動指示器 + 金字啟用態) */
+.chiprow {
+  position: relative; display: flex; gap: 4px; align-items: center; flex: 0 0 auto;
+  padding: 8px var(--gutter); overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+  border-bottom: 1px solid var(--line); background: var(--brand-wash); scroll-behavior: smooth;
+}
+.chiprow::-webkit-scrollbar { display: none }
+.pc-ind {
+  position: absolute; top: 8px; bottom: 8px; left: 0; z-index: 0; border-radius: 999px;
+  background: color-mix(in srgb, var(--gold) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gold) 52%, transparent);
+  box-shadow: 0 1px 12px color-mix(in srgb, var(--gold) 22%, transparent);
+  transition: transform .32s cubic-bezier(.32,.72,0,1), width .32s cubic-bezier(.32,.72,0,1), opacity .2s;
+  pointer-events: none;
+}
+.pchip {
+  position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto;
+  height: 34px; padding: 0 14px; border: 0; border-radius: 999px; white-space: nowrap; cursor: pointer;
+  font-size: 14px; color: var(--ink-mid); background: transparent; letter-spacing: .01em; transition: color .2s ease;
+}
+.pchip:hover { color: var(--ink-hi) }
+.pchip.on { color: var(--gold); font-weight: 650 }
+.pchip .pc-ct {
+  font-size: 11px; font-weight: 600; min-width: 18px; padding: 1px 6px; border-radius: 999px; text-align: center;
+  color: var(--ink-low); background: color-mix(in srgb, var(--ink-hi) 8%, transparent); transition: color .2s, background .2s;
+}
+.pchip.on .pc-ct { color: var(--gold); background: color-mix(in srgb, var(--gold) 15%, transparent) }
+
+/* 我的關注:清單切換列 —— minimal / 玻璃 / 滑動指示器 + 微動畫 */
+.wlbar {
+  display: flex; align-items: center; gap: 10px; flex: 0 0 auto;
+  padding: 8px var(--gutter); border-bottom: 1px solid var(--line); background: var(--brand-wash);
+}
+.wl-track {
+  position: relative; display: flex; align-items: center; gap: 4px; min-width: 0; flex: 1 1 auto;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none; padding: 3px; scroll-behavior: smooth;
+}
+.wl-track::-webkit-scrollbar { display: none }
+/* 滑動金色指示器:切換 tab 時平滑滑移(微動畫)*/
+.wl-ind {
+  position: absolute; top: 3px; bottom: 3px; left: 0; z-index: 0; border-radius: 999px;
+  background: color-mix(in srgb, var(--gold) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gold) 52%, transparent);
+  box-shadow: 0 1px 12px color-mix(in srgb, var(--gold) 22%, transparent);
+  transition: transform .32s cubic-bezier(.32,.72,0,1), width .32s cubic-bezier(.32,.72,0,1), opacity .2s;
+  pointer-events: none;
+}
+.wl-tab {
+  position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto;
+  height: 34px; padding: 0 14px; white-space: nowrap; border: 0; border-radius: 999px; cursor: pointer;
+  background: transparent; font-size: 14px; color: var(--ink-mid); letter-spacing: .01em; transition: color .2s ease;
+}
+.wl-tab:hover { color: var(--ink-hi) }
+.wl-tab.on { color: var(--gold); font-weight: 650 }
+.wl-nm { max-width: 12em; overflow: hidden; text-overflow: ellipsis }
+.wl-ct {
+  font-size: 11px; font-weight: 600; min-width: 18px; padding: 1px 6px; border-radius: 999px; text-align: center;
+  color: var(--ink-low); background: color-mix(in srgb, var(--ink-hi) 8%, transparent); transition: color .2s, background .2s;
+}
+.wl-tab.on .wl-ct { color: var(--gold); background: color-mix(in srgb, var(--gold) 15%, transparent) }
+/* 改名中 */
+.wl-edit {
+  position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 2px; flex: 0 0 auto;
+  height: 34px; padding: 0 6px 0 10px; border-radius: 999px; background: var(--glass);
+  border: 1px solid color-mix(in srgb, var(--gold) 52%, transparent);
+}
+.wl-edit input {
+  width: 8.5em; height: 26px; border: 0; background: transparent; color: var(--ink-hi);
+  font: inherit; font-size: 14px; outline: none;
+}
+.wl-ic {
+  display: inline-flex; padding: 5px; border: 0; border-radius: 8px; background: transparent;
+  color: var(--ink-mid); cursor: pointer; transition: color .15s, background .15s;
+}
+.wl-ic:hover { color: var(--ink-hi); background: color-mix(in srgb, var(--ink-hi) 8%, transparent) }
+.wl-ic.ok:hover { color: var(--gold) }
+/* 右側固定動作區(不隨 tabs 捲動 → ⋯ 位置恆定、不閃)*/
+.wl-actions {
+  display: flex; align-items: center; gap: 2px; flex: 0 0 auto; padding-left: 8px; border-left: 1px solid var(--line);
+}
+.wl-more, .wl-add {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 32px; min-width: 32px;
+  padding: 0 8px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: var(--ink-mid);
+  cursor: pointer; transition: color .15s, background .15s, border-color .15s;
+}
+.wl-more:hover, .wl-add:hover:not(:disabled) { color: var(--ink-hi); background: color-mix(in srgb, var(--ink-hi) 7%, transparent) }
+.wl-add:disabled { opacity: .35; cursor: default }
+
+/* 選單(portal / fixed:逃出軌道 overflow 裁切,永遠在最上層)*/
+.wl-backdrop { position: fixed; inset: 0; z-index: 80 }
+.wl-menu {
+  position: fixed; z-index: 81; padding: 6px;
+  background: color-mix(in srgb, var(--surface, #131316) 82%, transparent);
+  backdrop-filter: blur(18px) saturate(1.4); -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid var(--line-strong); border-radius: 14px;
+  box-shadow: 0 16px 44px rgba(0,0,0,.44), 0 1px 0 rgba(255,255,255,.05) inset;
+  transform-origin: top right; animation: wl-pop .16s cubic-bezier(.32,.72,0,1);
+}
+@keyframes wl-pop { from { opacity: 0; transform: translateY(-6px) scale(.96) } to { opacity: 1; transform: none } }
+.wl-menu button {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 11px; border: 0; border-radius: 9px;
+  background: transparent; color: var(--ink-hi); font: inherit; font-size: 13.5px; cursor: pointer; text-align: left;
+  transition: background .12s;
+}
+.wl-menu button:hover:not(:disabled) { background: color-mix(in srgb, var(--ink-hi) 9%, transparent) }
+.wl-menu button:disabled { opacity: .4; cursor: default }
+.wl-menu button.danger { color: #FF5C5C }
+.wl-menu button.danger:hover:not(:disabled) { background: color-mix(in srgb, #FF5C5C 13%, transparent) }
+.wl-hint { margin-left: auto; font-size: 11px; color: var(--ink-low); font-weight: 500 }
+
+/* 刪除確認 modal(玻璃、置中、Apple 風)*/
+.wl-modal-scrim {
+  position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; padding: 20px;
+  background: rgba(0,0,0,.5); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: wl-fade .18s ease;
+}
+.wl-modal {
+  width: 100%; max-width: 320px; padding: 22px 22px 18px; text-align: center;
+  background: color-mix(in srgb, var(--surface, #131316) 88%, transparent);
+  backdrop-filter: blur(24px) saturate(1.4); -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid var(--line-strong); border-radius: 20px;
+  box-shadow: 0 24px 70px rgba(0,0,0,.5), 0 1px 0 rgba(255,255,255,.06) inset; animation: wl-rise .2s cubic-bezier(.32,.72,0,1);
+}
+.wl-modal-ic {
+  display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; margin-bottom: 12px;
+  border-radius: 14px; color: #FF5C5C; background: color-mix(in srgb, #FF5C5C 14%, transparent);
+}
+.wl-modal-t { margin: 0 0 6px; font-size: 16.5px; font-weight: 650; color: var(--ink-hi); letter-spacing: .01em }
+.wl-modal-d { margin: 0 0 18px; font-size: 13px; line-height: 1.5; color: var(--ink-mid) }
+.wl-modal-act { display: flex; gap: 10px }
+.wl-btn {
+  flex: 1; height: 40px; border-radius: 12px; border: 1px solid var(--line-strong); font: inherit; font-size: 14px;
+  font-weight: 600; cursor: pointer; transition: background .15s, border-color .15s, opacity .15s;
+}
+.wl-btn.ghost { background: transparent; color: var(--ink-hi) }
+.wl-btn.ghost:hover { background: color-mix(in srgb, var(--ink-hi) 8%, transparent) }
+.wl-btn.danger { background: #FF5C5C; border-color: #FF5C5C; color: #fff }
+.wl-btn.danger:hover { background: #FF5C5C }
+@keyframes wl-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes wl-rise { from { opacity: 0; transform: translateY(10px) scale(.97) } to { opacity: 1; transform: none } }
+
+/* 現股 / CB 價 雙值(訊號第一眼欄):CB 價大、現股價小灰在下 */
+.pxpair { display: inline-flex; flex-direction: column; align-items: flex-end; line-height: 1.15 }
+.pxpair .px-cb { font-size: 16px; font-weight: 700; color: var(--ink-hi) }
+.pxpair .px-stk { font-size: 11.5px; color: var(--ink-low) }
+/* 距轉換價:|≤5%| = 逼近轉換價(發動),金色高亮 */
+.cdist { font-variant-numeric: tabular-nums }
+.cdist.approach { color: color-mix(in srgb, var(--gold) 62%, var(--ink-mid)); font-weight: 600 }
+.cdist.near { color: var(--gold); font-weight: 700 }
+/* 抽屜關注星號 */
+.dtool.watch.on { color: var(--gold) }
+.addf {
+  display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; font-size: var(--fs-label);
+  color: var(--ink-mid); border: 1px dashed var(--line-strong); border-radius: 6px;
+}
+.addf svg { width: 13px; height: 13px }
+.addf:hover { color: var(--ink-hi); border-color: var(--brand-lift) }
+.filter-wrap { position: relative }
+.filter-menu { animation: pop-in .16s var(--ease) both;
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 20; min-width: 168px; padding: 4px;
+  background: var(--l3); border: 1px solid var(--line-strong); border-radius: 8px;
+  display: flex; flex-direction: column; gap: 2px; box-shadow: 0 8px 24px rgba(0, 0, 0, .5);
+}
+.filter-menu button { text-align: left; padding: 7px 10px; font-size: var(--fs-label); color: var(--ink-mid); border-radius: 5px }
+.filter-menu button:hover { background: var(--l2); color: var(--ink-hi) }
+.fm-empty { padding: 7px 10px; font-size: 13px; color: var(--ink-low) }
+.bar3 .chip { animation: chip-in .18s var(--ease) both;
+  display: flex; align-items: center; gap: 7px; height: 26px; padding: 0 8px 0 10px; font-size: var(--fs-label);
+  color: var(--ink-hi); border: 1px solid var(--brand-lift); background: var(--brand-subtle); border-radius: 6px;
+}
+.bar3 .chip .x { display: flex; width: 14px; height: 14px; color: var(--ink-low); border-radius: 3px }
+.bar3 .chip .x:hover { color: var(--ink-hi) }
+.crit { margin-left: auto; font-size: 13px; color: var(--ink-low); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+/* 即時/盤後徽章:即時=綠點脈動 + 更新時間;盤後=灰 */
+.livepill { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; margin-left: 12px;
+  padding: 2px 9px; border-radius: var(--r-full); font-size: 12px; font-weight: 700;
+  color: var(--ink-low); background: rgba(255,255,255,.05); font-variant-numeric: tabular-nums }
+.livepill.on { color: var(--down); background: var(--down-bg) }
+.livepill.on i { width: 7px; height: 7px; border-radius: var(--r-full); background: currentColor; animation: livepulse 1.4s var(--ease) infinite }
+@keyframes livepulse { 0%,100% { opacity: 1; box-shadow: 0 0 0 0 currentColor } 50% { opacity: .55; box-shadow: 0 0 0 3px rgba(0,0,0,0) } }
+
+/* 資料斷更警示(slim 條) */
+.stale-banner { animation: slide-down .3s var(--ease) both;
+  display: flex; align-items: center; gap: var(--sp-2); flex: 0 0 auto;
+  padding: 8px var(--gutter); border-bottom: 1px solid rgba(201, 203, 209, .4);
+  background: rgba(224, 169, 78, .1); color: #C9CBD1; font-size: var(--fs-label); line-height: 1.5;
+}
+.stale-banner svg { flex: 0 0 auto }
+
+/* ═══ 表格(滿版、密集、去卡片、sticky) ═══ */
+.tablewrap { flex: 1; overflow: auto; background: var(--l0); padding: 0 var(--gutter) }
+table { width: 100%; border-collapse: collapse; min-width: 840px }
+/* 切換策略頁時(DataTable key 變)表格滑入:往右頁=從右滑入、往左頁=從左滑入(左右滑動過場) */
+.tablewrap { overflow-x: auto }
+.tablewrap table, .mlist { animation: table-fade .24s var(--ease) both }
+.tablewrap.slide-r table, .tablewrap.slide-r .mlist { animation: table-slide-r .28s var(--ease) both }
+.tablewrap.slide-l table, .tablewrap.slide-l .mlist { animation: table-slide-l .28s var(--ease) both }
+thead th {
+  position: sticky; top: 0; z-index: 3; background: var(--l1); font-size: 13px; font-weight: 500;
+  color: var(--ink-low); text-transform: uppercase; letter-spacing: .09em; text-align: right;
+  padding: 13px 30px; white-space: nowrap; border-bottom: 1px solid var(--line-strong);   /* 水平欄距 20→30(1.5×),欄與欄呼吸感 */
+  box-shadow: inset 0 -1px 0 rgba(216, 219, 224, .16);   /* 表頭金色髮絲線,錨定表格 */
+  cursor: pointer; user-select: none;
+}
+thead th:hover { color: var(--ink-mid) }
+thead th.sorted { color: var(--ink-hi) }
+thead th .sar { margin-left: 5px; color: var(--gold); font-size: 12px }
+thead th.l { text-align: left }
+.idname .fire-ic { display: inline-flex; color: var(--gold); margin: 0 3px 0 5px; vertical-align: -2px }
+thead th .sub {
+  display: block; font-size: 12px; letter-spacing: 0; text-transform: none;
+  color: var(--ink-low); font-weight: 400; margin-top: 2px; opacity: .8;
+}
+tbody td {
+  padding: 0 20px; height: 68px; border-bottom: 1px solid var(--line); text-align: right;
+  font-size: var(--fs-sub); color: var(--ink-mid); white-space: nowrap; vertical-align: middle;
+  font-variant-numeric: tabular-nums;   /* 數字等寬對齊 = 專業數據感 */
+}
+tbody tr { transition: background .14s var(--ease); cursor: pointer }
+tbody tr:hover { background: var(--l2) }
+.idc {
+  position: sticky; left: 0; z-index: 2; background: var(--l0);
+  text-align: left !important; min-width: 184px;
+  box-shadow: inset 2px 0 0 transparent;
+  transition: background .14s var(--ease), box-shadow .14s var(--ease);   /* 背景也 transition,與 row hover 同步(修斷頭) */
+}
+tbody tr:hover .idc { background: var(--l2); box-shadow: inset 2px 0 0 var(--gold) }   /* hover 金色左緣 */
+thead th.idc { background: var(--l1); z-index: 4 }
+.idcell { display: flex; align-items: flex-start; gap: 5px }
+.idmeta { min-width: 0 }
+.idname { font-size: 18px; font-weight: 700; color: var(--ink-hi); letter-spacing: .01em }
+.idname .code { color: var(--ink-low); font-weight: 400; font-size: 13px; margin-left: 6px }
+.idsub { font-size: 13px; color: var(--ink-low); margin-top: 1px }
+
+/* 關注星號:預設淡、hover 列時浮現、已關注恆亮金 */
+.starbtn { flex: none; display: inline-flex; align-items: center; justify-content: center;
+  padding: 2px; margin-top: 2px; background: none; border: 0; cursor: pointer;
+  color: var(--ink-low); opacity: .28; transition: opacity .12s var(--ease), color .12s var(--ease), transform .1s var(--ease) }
+tbody tr:hover .starbtn { opacity: .6 }
+.starbtn:hover { opacity: 1; color: var(--gold); transform: scale(1.15) }
+.starbtn.on { opacity: 1; color: var(--gold) }
+
+/* ── 以現股為組別:桌面現股表頭列(本體)+ CB 子列 ── */
+tbody tr.ghead { cursor: pointer }
+tbody tr.ghead td { height: 46px; background: var(--l1); color: var(--ink-mid);
+  border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line) }
+tbody tr.ghead:hover td { background: var(--l2) }
+tbody tr.ghead .ghead-id { position: sticky; left: 0; z-index: 2; background: var(--l1) }
+tbody tr.ghead:hover .ghead-id { background: var(--l2) }
+.ghead .gh-nm { font-size: 15px; font-weight: 700; color: var(--ink-hi) }
+.ghead .gh-cd { font-size: 12px; color: var(--ink-low); margin-left: 6px; font-variant-numeric: tabular-nums }
+.ghead .eb-tag { margin-left: 8px }
+.ghead-px { text-align: right; font-size: var(--fs-label); color: var(--ink-low); font-variant-numeric: tabular-nums }
+.ghead-px b { color: var(--ink-hi); font-weight: 700; font-size: var(--fs-sub); margin-left: 4px }
+.ghead-meta { text-align: right; font-size: 12px; color: var(--ink-low); letter-spacing: .02em }
+/* CB 子列:身分欄左緣淡金,示意掛在現股本體底下 */
+tbody tr.grow .idc { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--gold) 22%, transparent) }
+tbody tr.grow:hover .idc { box-shadow: inset 3px 0 0 var(--gold) }
+.idsub .eb-issuer { margin-left: 6px }
+.idsub .pat-tag { margin-right: 2px }
+
+/* ── 交換公司債(EB)標示:發行公司≠交換標的,避免誤讀成「這檔債屬於標的公司」── */
+.eb-tag {
+  display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 6px; vertical-align: 2px;
+  font-size: 11px; font-weight: 700; letter-spacing: .02em; white-space: nowrap;
+  color: var(--gold); background: color-mix(in srgb, var(--gold) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
+}
+.eb-issuer { color: var(--ink-mid); }
+.eb-issuer::before { content: '·'; margin: 0 6px; color: var(--ink-low); }
+.eb-note {
+  border-left: 3px solid var(--gold); padding: 8px 12px; margin: 0 0 10px;
+  background: color-mix(in srgb, var(--gold) 8%, transparent); border-radius: 0 8px 8px 0;
+}
+.eb-note b { color: var(--ink-hi); }
+.dhead h2 .eb-tag { vertical-align: 4px; }
+.hero { font-size: 22px; font-weight: 700; letter-spacing: -.01em }
+.up { color: var(--up) } .down { color: var(--down) } .warn { color: var(--warn) } .flat { color: var(--ink-mid) }
+.dim { color: var(--ink-low) }
+.empty { padding: var(--sp-10); text-align: center; color: var(--ink-mid); line-height: 1.7 }
+/* 手機空狀態:portal 到 body(脫離列表的動畫 transform),fixed 真正以視窗置中 */
+.empty-portal { display: none }
+@media (max-width: 839px) {
+  .empty-portal { display: block; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(84%, 340px); text-align: center; color: var(--ink-mid); line-height: 1.7; z-index: 20 }
+}
+.empty-star { color: var(--gold); font-size: 1.15em; vertical-align: -1px }
+/* 手機可排序表頭:點擊排序,當前排序欄轉金 */
+.m7-head .m7-h { cursor: pointer }
+.m7-head .m7-h.sorted { color: var(--gold) }
+
+/* 熱度雙向量表(正橘負綠) */
+.heatcell { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; width: 100% }
+.hbar { position: relative; width: 66px; height: 6px; background: var(--l3); border-radius: 3px; flex: 0 0 auto }
+.hbar .mid { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--line-strong) }
+.hbar .fill { position: absolute; top: 0; bottom: 0; border-radius: 3px }
+.hval { font-size: var(--fs-label); font-weight: 600; width: 34px; text-align: right }
+
+/* 信用色點+字 / 安全度 / 擔保 shield */
+.tcredit { display: inline-flex; align-items: center; gap: 7px; justify-content: flex-end; font-size: var(--fs-label); color: var(--ink-mid) }
+.tdot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; box-shadow: 0 0 0 2px var(--l0) }
+.cd-g { background: var(--down) } .cd-a { background: var(--warn) } .cd-r { background: var(--up) } .cd-n { background: var(--ink-low) }
+.tsafe { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; color: var(--down); font-size: var(--fs-label) }
+.tsafe svg { width: 14px; height: 14px }
+.tguar { display: inline-flex; justify-content: flex-end; width: 100%; color: var(--down) }
+.tguar svg { width: 15px; height: 15px }
+
+/* skeleton(hairline) */
+.skeleton div {
+  height: 64px; border-bottom: 1px solid var(--line);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .04), transparent);
+  background-size: 200% 100%; animation: shimmer 1.2s var(--ease) infinite;
+}
+@keyframes shimmer { from { background-position: 200% 0 } to { background-position: -200% 0 } }
+
+/* 頁尾免責(slim) */
+.pagenotice {
+  flex: 0 0 auto; font-size: 13px; color: var(--ink-low);
+  padding: 8px var(--gutter); border-top: 1px solid var(--line);
+}
+
+/* 行動版兩行摘要列(桌機隱藏) */
+.mlist { display: none }
+.mrow {
+  display: flex; flex-direction: column; gap: 9px; width: 100%; text-align: left;
+  padding: 13px 16px; border-bottom: 1px solid var(--line); background: var(--l1);
+  transition: background var(--t-hover) var(--ease);
+}
+.mrow:active { background: var(--l2) }
+.mrow-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px }
+.mrow-right { display: flex; align-items: center; gap: 4px; flex: none }
+.mrow-right .starbtn { opacity: .5 }
+/* 以現股為組別:手機組卡(現股=表頭本體,CB 掛底下) */
+.mgroup { margin-bottom: 10px; border-radius: 14px; overflow: hidden; background: var(--l1); border: 1px solid var(--line) }
+.mghead { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 11px 15px; cursor: pointer; border-bottom: 1px solid var(--line);
+  background: linear-gradient(0deg, var(--l1), color-mix(in srgb, var(--l1) 88%, var(--gold) 12%)) }
+.mghead:active { background: var(--l2) }
+.mgh-id { display: flex; align-items: baseline; gap: 7px; min-width: 0 }
+.mgh-nm { font-size: 16px; font-weight: 700; color: var(--ink-hi); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.mgh-cd { font-size: 12px; color: var(--ink-low); font-variant-numeric: tabular-nums; flex: none }
+.mgh-px { display: flex; align-items: baseline; gap: 8px; flex: none }
+.mgh-pxv { font-size: 18px; font-weight: 700; color: var(--ink-hi); font-variant-numeric: tabular-nums }
+.mgh-ct { font-size: 11px; color: var(--gold-deep); background: var(--gold-wash); padding: 2px 8px; border-radius: var(--r-full); white-space: nowrap }
+.mrow.ingroup { background: transparent; border-bottom: 1px solid var(--line) }
+.mgroup .mrow.ingroup:last-child { border-bottom: none }
+.pat-tag { display: inline-block; padding: 1px 8px; border-radius: var(--r-full); font-size: 11px; font-weight: 600;
+  background: var(--gold-wash); color: var(--gold-deep); line-height: 1.5 }
+.mrow-id { min-width: 0 }
+.mrow .l1 { display: flex; align-items: baseline; gap: 8px }
+.mrow .nm { font-weight: 700; font-size: var(--fs-body); color: var(--ink-hi) }
+.mrow .cd { color: var(--ink-low); font-size: var(--fs-label); font-variant-numeric: tabular-nums }
+.mrow .msub { display: flex; align-items: center; gap: 9px; font-size: var(--fs-label); color: var(--ink-low); margin-top: 3px }
+/* 指標區:hero(距轉換價/到位度,大字金)+ 其餘 4 個 2×2 格(市場研究推薦版型) */
+.mrow-metrics {
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--l0); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px;
+}
+.mrow .mm { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.mrow .mml { font-size: 10.5px; color: var(--ink-low); letter-spacing: .02em; white-space: nowrap; line-height: 1.2 }
+.mrow .mm b { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink-hi); line-height: 1.2 }
+/* hero:到位度大字,吃距轉換價的金色分級 */
+.mm-hero { padding-bottom: 9px; border-bottom: 1px solid var(--line) }
+.mm-hero .mml { font-size: 11px }
+.mm-hero-sub { color: var(--ink-low); opacity: .7; margin-left: 6px; font-weight: 400 }
+.mm-hero > b { font-size: 23px; line-height: 1.05; font-weight: 700 }
+.mm-hero > b .cdist { font-size: inherit; font-weight: 700 }
+/* 其餘 4 指標 2×2,每格 ~167px 超寬 */
+.mm-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px 12px }
+
+/* ── 手機版型 ⑦(定版):無卡片欄化 · 標的/CB · 價 · 距轉 · 未轉 · 賣回 · 折溢 ──
+   放大字級、欄距 1.5×、超出可橫向滑;名稱欄凍結(sticky-left);群組用現股行白色橫線分隔 */
+.m7 {
+  display: grid;
+  grid-template-columns: 205px 64px 62px 48px 54px 68px;
+  align-items: center; column-gap: 32px; padding: 0; min-width: 100%;   /* 名稱欄支援 5 字;欄距明顯拉大(22→32)超出橫向滑 */
+}
+/* 所有數字欄一律右對齊等寬(移除單位後標題自然對齊在數值上方=金融表鐵律) */
+.m7 > span:not(.c-name), .m7 > b { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+.m7 > *:last-child { padding-right: 14px }
+/* 名稱欄:凍結左側(橫滑時恆可見)、不透明底蓋住底下數字、含左內距 */
+.m7 .c-name { position: sticky; left: 0; z-index: 2; background: var(--l0);
+  min-width: 0; overflow: hidden; white-space: nowrap; padding-left: 28px }   /* 最左留白 ×2,呼吸空間 */
+/* 欄位標題列:字放大、灰、髮絲底線、sticky top(上方無縫,內容不透過) */
+.m7-head {
+  position: sticky; top: 0; z-index: 20; min-height: 58px; background: var(--l0);
+  align-items: stretch;   /* 覆蓋 .m7 的 center:每格填滿列高,不留透光縫 */
+  font-size: 16px; color: var(--ink-mid); letter-spacing: .02em;   /* 標題放大 1.2×(長輩可讀) */
+  border-bottom: 1px solid var(--line-strong);
+  /* 上緣蓋一道 3px 實色 l0(封死與上方 bar3 之間的次像素透出縫)+ 下方陰影(列從底下乾淨捲過) */
+  box-shadow: 0 -3px 0 0 var(--l0), 0 5px 10px -3px rgba(0,0,0,.55);
+}
+.m7-head > span { background: var(--l0) }   /* 每格都不透明,徹底封縫 */
+.m7-head .c-name { z-index: 21; display: flex; align-items: center }
+/* 數字欄標題:主標 + 下方小字說明(兩行、皆右對齊在數值上方) */
+.m7-head > span:not(.c-name) { display: flex; flex-direction: column; justify-content: center; align-items: flex-end; line-height: 1.3 }
+.m7-head i { font-style: normal; display: block; font-size: 12px; font-weight: 400; color: var(--ink-low); opacity: .85 }
+/* 群組分隔=Gestalt 鄰近:群組間一條淡線「置中」在留白裡(上下各 12px 等距,非貼行邊);
+   用 ::before 獨立分隔元素正確設計;第一組不加(緊貼標題列);群組內 CB 用更細線分行 */
+.m7grp { margin-top: 0 }
+.m7grp::before {
+  content: ''; display: block; height: 1px; background: var(--line-strong); margin: 15px 0;   /* 群組間留白 ×1.2 */
+}
+.m7-head + .m7grp::before { background: transparent }   /* 第一組:保留 spacer 給上留白,但不畫線 */
+.m7-stk { min-height: 52px; cursor: pointer }
+.m7-stk .c-name { display: flex; align-items: flex-end; gap: 7px }   /* 名/代號/型態 badge 三者靠底對齊 */
+.m7-stk .c-name b { font-size: 18px; font-weight: 700; color: var(--ink-hi); overflow: hidden; text-overflow: ellipsis }
+.m7-stk .c-name i { font-style: normal; color: var(--ink-low); font-size: 15px; flex: 0 0 auto }
+.m7-stk .c-px { font-size: 16px; font-weight: 700; color: var(--ink-hi) }
+/* 型態:低調 badge,放現股名旁(見 .gpat-badge);走勢靠左緊接現股價後留可見區 */
+.gpat-badge { display: inline-block; font-style: normal; font-size: 13px; line-height: 1.5;
+  padding: 1px 8px; border-radius: 6px; background: rgba(255,255,255,.07); color: var(--ink-mid);
+  margin-left: 2px; flex: 0 0 auto; align-self: flex-end; white-space: nowrap }
+.m7-stk .c-spark { grid-column: 3 / -1; display: flex; justify-content: flex-start; align-items: center; padding-left: 4px }
+.spark { display: block }
+/* CB 列:純 5 指標、行高鬆、髮絲線(白橫線是群組分隔,列間用淡線) */
+.m7-cb { min-height: 52px; border-top: 1px solid var(--line); cursor: pointer; transition: background .12s var(--ease) }
+.m7-cb:active { background: var(--l1) }
+.m7-cb:active .c-name { background: var(--l1) }
+.m7-cb .c-name { display: flex; align-items: center; gap: 5px; font-size: 15px; color: var(--ink-hi) }
+.m7-cb .c-name .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.m7-cb .c-name > i { font-style: normal; color: var(--ink-low); font-size: 15px; flex: 0 0 auto }
+.m7-cb .c-name .eb, .m7-stk .c-name .eb { font-style: normal; font-size: 11px; color: var(--ink-low); flex: 0 0 auto }
+.m7-cb .c-px { font-size: 16px; font-weight: 700; color: var(--ink-hi) }
+.m7-cb > span { font-size: 15px; color: var(--ink-hi) }
+.m7-cb .sig { font-weight: 600 }              /* 帶正負號值(距轉/折溢):半粗、中性無色 */
+.m7-cb .dimv { color: var(--ink-mid); font-weight: 400 }   /* 未轉/賣回:次要灰 */
+.m7-cb .c-name .starbtn { flex: 0 0 auto; margin: 0 }
+
+.st { display: inline-flex; align-items: center; gap: 5px; font-weight: 500 }
+.st i { width: 6px; height: 6px; border-radius: var(--r-full); background: currentColor }
+.st-gold { color: var(--gold) }
+.st-down { color: var(--down) }
+.st-warm { color: var(--heat-warm) }
+.st-dim { color: var(--ink-low) }
+
+/* HeatPill(抽屜關鍵數/大數;表格內另用雙向量表) */
+.heat {
+  display: inline-flex; align-items: center; gap: 3px; min-width: 44px; justify-content: center;
+  font-size: var(--fs-label); font-weight: 700; font-variant-numeric: tabular-nums;
+  padding: 2px var(--sp-2); border-radius: var(--r-full);
+}
+.heat-hot { background: var(--heat-hot); color: #FFF }
+.heat-warm { background: rgba(213, 160, 92, .2); color: var(--heat-warm) }
+.heat-mid { background: rgba(236, 236, 238, .08); color: var(--heat-mid) }
+.heat-cool { background: var(--down-bg); color: var(--heat-cool) }
+/* 去雜訊:抽屜關鍵指標裡的熱度保留膠囊形狀,只換成中性灰底(同型態 badge,不再青色跳出) */
+.kvrow .kvv .heat { background: rgba(255, 255, 255, .07); color: var(--ink-hi) }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   明細抽屜(mockup:右滑入、固定 header、判讀色塊、漸進揭露分段)
+   ═══════════════════════════════════════════════════════════════════════ */
+.scrim {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, .55);
+  opacity: 0; pointer-events: none; transition: opacity .28s var(--ease); z-index: 10;
+}
+.scrim.on { opacity: 1; pointer-events: auto }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(452px, 94vw); background: var(--l1);
+  border-left: 1px solid var(--line-strong); z-index: 11; display: flex; flex-direction: column;
+  transform: translateX(100%); transition: transform .32s var(--ease); container-type: inline-size;
+}
+.drawer.on { transform: translateX(0) }
+.drawer.focus-mode { width: min(1440px, 97vw) }
+/* 側邊拖曳把手:拖左緣調整抽屜寬度(方便畫圖) */
+.drawer-resize { position: absolute; left: -3px; top: 0; bottom: 0; width: 8px; cursor: ew-resize; z-index: 12 }
+.drawer-resize::after { content: ''; position: absolute; left: 3px; top: 0; bottom: 0; width: 2px; background: transparent; transition: background .12s var(--ease) }
+.drawer-resize:hover::after { background: var(--brand-lift) }
+
+.dhead { flex: 0 0 auto; padding: 18px 20px 14px; border-bottom: 1px solid var(--line) }
+.dhead-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px }
+.dhead-top > div { min-width: 0 }
+.dhead h2 { margin: 0; font-size: var(--fs-h2); font-weight: 700 }
+.dhead h2 .code { font-size: var(--fs-label); color: var(--ink-low); font-weight: 400; margin-left: 8px }
+/* 標的(現股/換股)改低調 badge,直接寫名稱(同首頁型態 badge 風格),不再寫「現股」 */
+.dhead h2 .dstk-badge { display: inline-block; margin-left: 8px; padding: 2px 11px; border-radius: 999px; background: rgba(255,255,255,.07); color: var(--ink-mid); font-size: 13px; font-weight: 500; vertical-align: text-bottom; white-space: nowrap }
+.dstk { font-size: var(--fs-label); color: var(--ink-low); margin-top: 2px }
+.dhead-tools { display: flex; align-items: center; gap: 4px; flex: 0 0 auto }
+.dtool, .dclose { width: 30px; height: 30px; color: var(--ink-low); border-radius: 6px; flex: 0 0 auto; display: grid; place-items: center }
+.dtool:hover, .dclose:hover { color: var(--ink-hi); background: var(--l2) }
+.dtool.on { color: var(--gold) }
+.klhint { font-size: 13px; color: var(--ink-low); margin-top: 8px; line-height: 1.6 }
+.verdictline {
+  display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 12px;
+  border-left: 2px solid var(--gold); background: var(--gold-wash); border-radius: 0 6px 6px 0;
+}
+.verdictline .vw { font-weight: 700; font-size: var(--fs-sub); flex: 0 0 auto }
+.verdictline .vw.up { color: var(--up) } .verdictline .vw.down { color: var(--down) } .verdictline .vw.warn { color: var(--warn) }
+.verdictline .vt { font-size: var(--fs-label); color: var(--ink-mid) }
+
+.dbody { flex: 1; overflow-y: auto; display: flex; flex-direction: column }
+.dchart, .dsections { display: flex; flex-direction: column; min-width: 0 }
+/* 折價/賣回:K 線不是主角 → 降到最後 */
+.dchart.klast { order: 5 }
+/* 抽屜夠寬(focus 或拖寬 ≥800)→ 方向頁雙欄:K線左主畫面、資訊右側捲動。與 JS 的 wideChart 同旗標(chart-clean)驅動,標頭放置才一致 */
+.drawer.chart-clean .dbody.chart-led { flex-direction: row; overflow: hidden }
+.drawer.chart-clean .dbody.chart-led .dchart { flex: 1 1 auto; overflow: hidden; border-right: 1px solid var(--line) }
+.drawer.chart-clean .dbody.chart-led .dsections { flex: 0 0 clamp(300px, 27%, 380px); overflow-y: auto }
+
+/* 漸進揭露分段 */
+.sec { border-bottom: 1px solid var(--line) }
+.sechead {
+  display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 13px 20px;
+  font-size: 13px; font-weight: 600; color: var(--ink-low); text-transform: uppercase; letter-spacing: .05em;
+}
+.sechead:hover { color: var(--ink-mid) }
+.sechead svg { width: 15px; height: 15px; transition: transform .2s var(--ease) }
+.sec.open .sechead svg { transform: rotate(180deg) }
+/* 明細 Section 開啟態:標題轉金「亮起」+ 整欄底色變深,一眼看出哪欄被打開 */
+.dsections .sec { transition: background .2s var(--ease) }
+.dsections .sec.open { background: rgba(0, 0, 0, .2) }
+.dsections .sec.open .sechead { color: var(--ink-hi) }
+/* K線 Section(.dchart 內):保留 display 切換(它是 flex 填滿的特例,不能套 max-height) */
+.dchart .secbody { display: none; padding: 0 20px 16px }
+.dchart .sec.open .secbody { display: block }
+/* 詳情 Section(.dsections 內):max-height 動畫展開/收合(可靠,不受 flex/grid 干擾) */
+.dsections .secbody { display: block; overflow: hidden; max-height: 0; padding: 0 20px; transition: max-height .32s var(--ease), padding .28s var(--ease) }
+.dsections .sec.open .secbody { max-height: 1600px; padding: 0 20px 16px }
+.sec-sub {
+  font-size: 13px; font-weight: 600; color: var(--ink-mid); letter-spacing: .04em;
+  margin: var(--sp-3) 0 var(--sp-1); display: flex; align-items: center; gap: 2px;
+}
+.sec-sub:first-child { margin-top: 0 }
+.judgetext { font-size: var(--fs-sub); color: var(--ink-mid); line-height: 1.7 }
+.judgetext b { color: var(--gold); font-weight: 700; margin: 0 4px 0 6px }
+.notice {
+  flex: 0 0 auto; font-size: 13px; color: var(--ink-low);
+  padding: 8px 20px; border-top: 1px solid var(--line);
+}
+
+/* key-value 分列(KeyStats/TermsBlock/CreditBlock 共用;底線分隔非卡片) */
+.kvlist { margin-top: var(--sp-1) }
+.kvrow {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-4);
+  padding: 9px 0; font-size: var(--fs-sub);   /* 去雜訊:移除逐列橫線,改用留白分隔(對齊首頁 BP-1) */
+}
+.kvrow:last-child { border-bottom: none }
+.kvrow dt { color: var(--ink-low); font-size: var(--fs-label); opacity: .85; display: inline-flex; align-items: center; gap: 2px; flex: 0 0 auto }
+.kvrow .kvv {
+  font-weight: 600; text-align: right; color: var(--ink-hi); font-variant-numeric: tabular-nums;
+  display: inline-flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; justify-content: flex-end;
+}
+.kvrow .kvv.up { color: var(--up) } .kvrow .kvv.down { color: var(--down) }
+.kvrow .kvv.flat { color: var(--ink-mid) } .kvrow .kvv.warn { color: var(--warn) }
+/* 契約條款(kvlist-flat):全部同字級(16)、同一個白色、去粗體;只有前 3 項(轉換價/到期/擔保)的值保留粗體。
+   唯二的灰=「不相關/安全」態:停止轉換期間已過去、強贖未觸發(未接近/接近)——用 .dim 標,其餘一律白。 */
+.kvlist-flat .kvrow dt,
+.kvlist-flat .kvrow .kvv,
+.kvlist-flat .schedchip,
+.kvlist-flat .fcall,
+.kvlist-flat .prospectus-link,
+.kvlist-flat .kvrow .kvv.warn { font-size: var(--fs-sub); font-weight: 400; color: var(--ink-hi) }
+.kvlist-flat .kvv.strong { font-weight: 700 }   /* 只有標了 strong 的關鍵項(發行公司[EB]/轉換價/到期/擔保)粗體 */
+.kvlist-flat .prospectus-link { border-bottom: none }
+.kvlist-flat .fcall { background: none; padding: 0 }   /* 強贖去 badge 底,純文字 */
+.kvlist-flat .dim, .kvlist-flat .dim * { color: var(--ink-low) }   /* 灰態:停轉已過去 / 強贖未觸發,整值(含內層 chip)灰 */
+.kvnote { font-size: 13px; color: var(--ink-low); line-height: 1.7; margin-top: var(--sp-2) }
+.schedchip { font-size: var(--fs-label); color: var(--ink-low); font-variant-numeric: tabular-nums }
+.subwrap { display: inline-flex; flex-wrap: wrap; gap: 3px 8px; justify-content: flex-end; align-items: center }
+.kv-more { display: flex; width: 100%; justify-content: flex-end; align-items: center; gap: 3px; margin: 10px 0 2px; font-size: var(--fs-label); color: var(--ink-low); transition: color .12s var(--ease) }
+.kv-more:hover { color: var(--gold) }
+.kv-more-ic { transition: transform .2s var(--ease) }
+.kv-more.open .kv-more-ic { transform: rotate(180deg) }
+/* 去雜訊:強制購回「未接近」(安全態)降成中性灰,真有風險(接近/觸發中)才保留橙/紅 */
+.kvrow .kvv .fc-far { background: rgba(255, 255, 255, .07); color: var(--ink-mid) }
+
+/* 信用燈(抽屜體檢/關鍵數;綠/黃/紅) */
+.clight { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-label); font-weight: 700 }
+.clight i { width: 7px; height: 7px; border-radius: var(--r-full); background: currentColor; flex: 0 0 auto }
+.cl-green { color: var(--down) }
+.cl-yellow { color: var(--warn) }
+.cl-red { color: var(--up) }
+.cl-unknown { color: var(--ink-low) }
+
+/* ── 統一 pill 家族(抽屜/清單共用一種形狀,只用語義色區分,避免「很亂」)──
+   同尺寸:13px/700/圓角全滿/2px 8px;色語義:金=訊號信號、綠=安全下檔、琥珀=注意、紅=風險 */
+.fcall, .tag, .pat-tag, .pill { display: inline-block; font-size: var(--fs-label); font-weight: 700;
+  padding: 2px 8px; border-radius: var(--r-full); line-height: 1.5; vertical-align: 1px }
+/* 型態 pill:抽屜明細裡降成低調灰(去雜訊,與首頁 gpat-badge 一致);其餘信號 pill 維持品牌金 */
+.pat-tag, .pill-gold, .tag-fire { background: var(--gold-wash); color: var(--gold-deep) }
+.tag-pat { background: rgba(255, 255, 255, .07); color: var(--ink-mid); font-weight: 500 }
+.tag-safe, .pill-safe, .fc-far { background: var(--down-bg); color: var(--down) }
+.fc-near, .pill-warn { color: var(--warn); background: rgba(226, 122, 69, .14) }
+.fc-trig, .pill-risk { color: var(--up); background: var(--up-bg) }
+.fc-na { color: var(--ink-low) }
+.stratcell { display: inline-flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end }
+/* 策略欄常有多個 chip 疊排:給整格上下 padding,chip 才不會貼到列邊界、分得清屬於哪列 */
+td.stratcol { padding-top: 11px; padding-bottom: 11px }
+.stag {
+  display: inline-flex; align-items: center; gap: 2px; font-size: 13px; font-weight: 700; line-height: 1;
+  padding: 3px var(--sp-2); border-radius: var(--r-full); background: var(--brand-subtle); color: var(--brand-lift);
+  border: 1px solid rgba(216, 219, 224, .28); cursor: pointer;
+  transition: background .12s var(--ease), color .12s var(--ease), border-color .12s var(--ease);
+}
+.stag:hover { background: var(--brand-lift); color: var(--l0); border-color: var(--brand-lift) }
+.prospectus-link { display: inline-flex; align-items: center; gap: 2px; font-size: var(--fs-sub); color: var(--info); text-decoration: none; border-bottom: 1px solid currentColor; white-space: nowrap }
+.prospectus-link:hover { opacity: .8 }
+
+/* 停止轉換期間 */
+.conv-state {
+  display: flex; gap: 6px; flex-wrap: wrap; align-items: baseline; margin-bottom: 10px; padding: 8px 10px;
+  border-radius: var(--r-sm); font-size: var(--fs-label); line-height: 1.55; color: var(--ink-mid);
+  background: var(--l2); border-left: 3px solid var(--line);
+}
+.conv-state b { color: var(--ink-hi); font-weight: 700 }
+.conv-open { border-left-color: rgba(61, 214, 140, .75) }
+.conv-before, .conv-closed { border-left-color: #A9ADB5; background: rgba(169, 173, 181, .08) }
+.conv-before b, .conv-closed b { color: #A9ADB5 }
+
+/* 集保庫存趨勢 */
+.custody-chart { display: block; width: 100%; height: 64px; border-radius: var(--r-sm); background: var(--l2) }
+.custody-fill { fill: rgba(216, 219, 224, .16) }
+.custody-line { fill: none; stroke: var(--gold); stroke-width: 2px; stroke-linejoin: round }
+.custody-alert .custody-fill { fill: rgba(169, 173, 181, .18) }
+.custody-alert .custody-line { stroke: #A9ADB5 }
+.custody-foot { display: flex; justify-content: space-between; gap: 10px; margin-top: 6px; font-size: var(--fs-label); color: var(--ink-mid); font-variant-numeric: tabular-nums }
+.custody-foot b { color: var(--ink-hi) }
+
+/* CBAS 校準 */
+.slider { display: flex; align-items: center; gap: var(--sp-3); font-size: var(--fs-label); color: var(--ink-mid); margin-bottom: var(--sp-2) }
+.slider input[type=range] { flex: 1; accent-color: var(--gold-deep) }
+.slider b { min-width: 40px; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-hi) }
+.cbas-cal { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; font-size: var(--fs-label); color: var(--ink-mid) }
+.cbas-cal input {
+  width: 116px; padding: 5px 8px; border-radius: var(--r-sm); background: var(--l2);
+  border: 1px solid var(--line); color: var(--ink-hi); font-variant-numeric: tabular-nums;
+}
+.cbas-cal input:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px }
+.cbas-cal button { padding: 5px 10px; border-radius: var(--r-sm); font-weight: 650; color: var(--ink-on-gold); background: var(--gold); border: 1px solid var(--gold) }
+
+/* ═══ K 線面板(真圖 KLinePanel;維持既有畫線工具樣式) ═══ */
+.drawer-chart-column { min-width: 0 }
+.kline-panel { margin: 0; border: none; border-radius: 0; background: transparent; overflow: hidden }   /* 滿版,無卡片邊界 */
+.kline-lazy { min-height: 320px; display: grid; place-items: center; color: var(--ink-mid); font-size: var(--fs-sub) }
+.kline-controls { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; min-height: 52px; padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--line) }
+/* 膠囊分段(現股⇄轉債):金塊在兩節間左右滑動,切換時拉伸再收束=液化 */
+.kseg { position: relative; display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255, 255, 255, .055) }
+.kseg-thumb { position: absolute; top: 3px; bottom: 3px; border-radius: 999px; background: var(--gold); box-shadow: 0 2px 11px rgba(216, 219, 224, .42); z-index: 0; pointer-events: none; transition: left .34s cubic-bezier(.34, 1.42, .5, 1), width .34s cubic-bezier(.34, 1.42, .5, 1), opacity .2s ease }
+.kseg button { position: relative; z-index: 1; min-height: 30px; padding: 0 16px; border-radius: 999px; color: var(--ink-mid); font-size: var(--fs-label); font-weight: 700; background: transparent; transition: color .26s var(--ease) }
+.kseg button.active { color: #131316 }
+.kseg button:not(.active):hover { color: var(--ink-hi) }
+.kseg button:active { transform: scale(.94) }
+/* 標籤+自訂下拉膠囊(週期 / 圖 | 均線布林 / 副 | 副圖指標) */
+.kpill { position: relative; display: inline-flex; align-items: center; gap: 3px; min-height: 34px; padding: 0 5px 0 13px; border-radius: 999px; background: rgba(255, 255, 255, .055); transition: background var(--t-hover) var(--ease) }
+.kpill:hover { background: rgba(255, 255, 255, .09) }
+.kpill.kpill-plain { padding-left: 5px }
+.kpill-lbl { font-size: var(--fs-label); font-weight: 700; color: var(--ink-mid) }
+.kpill-btn { display: inline-flex; align-items: center; gap: 3px; min-height: 30px; padding: 0 2px 0 5px; border: 0; background: transparent; color: var(--ink-hi); font-size: var(--fs-label); font-weight: 700; cursor: pointer }
+.kpill-val { min-width: 1.4em; text-align: left }
+.kpill-caret { color: var(--ink-mid); transition: transform .22s var(--ease) }
+.kpill.is-open .kpill-caret { transform: rotate(180deg); color: var(--gold) }
+/* 複合膠囊:一顆膠囊裝多個下拉(副 | ▾ | ▾) */
+.kpill-multi { gap: 1px; padding: 0 3px 0 13px }
+.kpill-slot { position: relative; display: inline-flex; align-items: center }
+.kpill-slot.is-open .kpill-caret { transform: rotate(180deg); color: var(--gold) }
+.kpill-sep { width: 1px; height: 15px; background: var(--line-strong); flex: 0 0 auto }
+/* 下拉選單:fixed 定位(不被工具列 overflow 裁切)+ 開合微動畫 */
+.kpill-menu { position: fixed; z-index: 120; margin: 0; padding: 5px; list-style: none; border-radius: 13px; background: #1A1A1F; border: 1px solid var(--line-strong); box-shadow: 0 14px 36px rgba(0, 0, 0, .5); transform-origin: top center; animation: kpill-in .16s cubic-bezier(.2, .9, .3, 1.15) }
+@keyframes kpill-in { from { opacity: 0; transform: translateY(-6px) scale(.96) } to { opacity: 1; transform: none } }
+.kpill-opt { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 36px; padding: 0 10px 0 12px; border-radius: 8px; color: var(--ink-hi); font-size: var(--fs-label); font-weight: 600; white-space: nowrap; cursor: pointer; transition: background .14s var(--ease), color .14s var(--ease) }
+.kpill-opt:hover { background: rgba(255, 255, 255, .08) }
+.kpill-opt.active { color: var(--gold) }
+.kpill-opt.disabled { opacity: .34; cursor: not-allowed }
+/* 副圖:收合/展開單鈕(頂部控制列,緊排;細調高度用拖分隔線) */
+.kline-sub-toggle { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; min-height: 32px; border-radius: var(--r-sm); color: var(--ink-mid); background: rgba(255, 255, 255, .055) }
+.kline-sub-toggle[aria-pressed="true"] { color: var(--gold) }
+.kline-subh { display: flex; gap: 2px; padding: 2px; border-radius: var(--r-sm); background: rgba(255,255,255,.055) }
+.kline-subh button { min-height: 28px; padding: 0 11px; border-radius: 5px; color: var(--ink-mid); font-size: var(--fs-label); font-weight: 700 }
+.kline-subh button.active { color: #131316; background: var(--gold) }
+.kline-indicator { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--ink-mid); font-size: var(--fs-label) }
+.kline-indicator select, .draw-width select { min-height: 30px; color: var(--ink-hi); background: #1A1A1F; border: 1px solid var(--line-strong); border-radius: var(--r-sm); padding: 0 var(--sp-2) }
+.drawing-save { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--ink-low); font-size: 12px; white-space: nowrap }
+.drawing-save.saved { color: var(--down) }
+.drawing-save.error { color: var(--up) }
+.kline-ohlc { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; min-height: 34px; padding: var(--sp-1) var(--sp-3); color: var(--ink-mid); border-bottom: 1px solid var(--line); font-size: 13px; font-variant-numeric: tabular-nums }
+.kline-ohlc b { color: var(--ink-hi); font-weight: 400 }
+.kline-ohlc strong { color: var(--ink-hi); font-weight: 400 }
+.kline-ohlc strong.up { color: var(--up) }
+.kline-ohlc strong.down { color: var(--down) }
+.draw-toolbar {
+  position: relative; display: flex; align-items: center; gap: 3px; min-width: 0; padding: var(--sp-2);
+  overflow-x: auto; overflow-y: hidden; border-bottom: 1px solid var(--line);
+  scrollbar-width: none;
+}
+.draw-toolbar::-webkit-scrollbar { display: none }
+.draw-div { flex: 0 0 auto; width: 1px; align-self: stretch; margin: 4px 4px; background: var(--line) }
+.draw-div-push { margin-left: auto }
+.draw-tool-info { display: inline-flex; align-items: center; padding: 0 5px; flex: 0 0 auto }
+.draw-tool-info .info { color: var(--ink-low) }
+.draw-tool.danger { color: var(--up) }        /* 清除全部=破壞性,紅色警示 */
+.draw-tool.danger:not(:disabled):hover { color: var(--up); background: rgba(255, 92, 92, .12); border-color: rgba(255, 92, 92, .4) }
+.draw-tools-primary, .draw-tools-style, .draw-tools-actions { display: flex; align-items: center; gap: 2px; flex: none }
+.draw-tools-style, .draw-tools-actions { padding-left: var(--sp-2); border-left: 1px solid var(--line) }
+.draw-tools-actions { margin-left: auto }
+.draw-tool { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 54px; min-height: 52px; padding: 4px 6px; color: var(--ink-mid); border: 1px solid transparent; border-radius: var(--r-sm); font-size: 11px; white-space: nowrap }
+.draw-tool:hover:not(:disabled) { color: var(--ink-hi); background: rgba(255, 255, 255, .06) }
+.draw-tool.active { color: var(--gold); border-color: rgba(216, 219, 224, .38); background: rgba(216, 219, 224, .09) }
+.draw-tool:disabled { opacity: .32; cursor: not-allowed }
+.draw-tool.compact { min-width: 36px; width: 36px; padding: 4px }
+.draw-color, .draw-width { display: flex; flex-direction: column; justify-content: center; gap: 3px; min-width: 48px; color: var(--ink-low); font-size: 11px; text-align: center }
+.draw-color input { width: 38px; height: 25px; margin: 0 auto; padding: 1px; border: 1px solid var(--line-strong); border-radius: 5px; background: transparent }
+.draw-width select { min-height: 25px; font-size: 12px }
+.draw-more { position: relative; display: flex; align-items: center; flex: none }
+.draw-overflow-menu { position: absolute; z-index: 24; top: calc(100% + 7px); right: 0; width: 210px; padding: 6px; border: 1px solid var(--line-strong); border-radius: var(--r-md); background: #1A1A1F; box-shadow: var(--shadow-overlay) }
+.draw-overflow-menu button { display: flex; align-items: center; gap: var(--sp-2); width: 100%; min-height: 36px; padding: 0 var(--sp-3); border-radius: var(--r-sm); color: var(--ink-mid); font-size: var(--fs-label); text-align: left }
+.draw-overflow-menu button:hover:not(:disabled), .draw-overflow-menu button:focus-visible { color: var(--ink-hi); background: rgba(255, 255, 255, .07) }
+.draw-overflow-menu button.danger { color: var(--up) }
+.draw-overflow-menu button:disabled { opacity: .35; cursor: not-allowed }
+.draw-menu-divider { height: 1px; margin: 5px var(--sp-2); background: var(--line) }
+.draw-menu-style-mobile { display: none }
+.kline-stage { position: relative; min-height: clamp(320px, 42vh, 420px) }
+.kline-chart { width: 100%; height: clamp(360px, 46vh, 500px) }
+/* 圖表內所有元素(含 klinecharts z-index:20 的副圖分隔線)關掉瀏覽器觸控手勢,
+   否則手機上垂直拖分隔線會被當成捲頁吃掉、拖不動。圖表的平移/縮放/拖曳由 klinecharts 自理。 */
+.kline-chart, .kline-chart * { touch-action: none }
+/* 自製副圖拖曳把手:整條線透明可抓(無可見 grip),z-index 蓋過 klinecharts 分隔線(20),觸控/滑鼠皆可 */
+.kline-sep-handle { position: absolute; left: 0; right: 0; height: 20px; z-index: 22; cursor: row-resize; touch-action: none; background: transparent }
+/* 觸控裝置:偽元素上下各外擴 12px → 熱區 44px(觸控標準),視覺與定位不變、純擴大可點範圍 */
+@media (pointer: coarse) { .kline-sep-handle::before { content: ''; position: absolute; left: 0; right: 0; top: -12px; bottom: -12px } }
+.kline-sep-handle.muted { pointer-events: none }
+/* 自製指標 legend:各 pane 頂部原位,每個數字一塊底色(同 K 線深底)避免疊線看不清;不擋互動 */
+.kline-legend { position: absolute; left: 8px; z-index: 8; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; pointer-events: none; font-family: var(--font-sans) }
+/* 畫線載入/雲端同步指示:與主圖 legend 同一行的最右側,小轉圈、不擋操作 */
+.kline-draw-sync { position: absolute; top: 5px; right: 8px; z-index: 8; display: flex; align-items: center; padding: 3px; border-radius: 3px; color: var(--gold); background: rgba(19, 19, 22, .82); pointer-events: none }
+.kline-legend .klg-item { font-size: 11px; font-weight: 600; line-height: 1.5; padding: 0 5px; border-radius: 3px; background: rgba(19, 19, 22, .82); white-space: nowrap; font-variant-numeric: tabular-nums }
+/* 寬版兩欄(chart-clean=focus 或拖寬):左半=純 K 線(拿掉 section 標頭/邊框,K 線 flex 填滿可用高度) */
+.drawer.chart-clean .dchart .sechead { display: none }
+.drawer.chart-clean .dchart .klhint { display: none }
+.drawer.chart-clean .dchart .kline-panel { border: none; border-radius: 0; margin: 0; background: transparent }
+/* flex 撐滿鏈:dchart→sec→secbody→chart-column→panel→stage→chart 全填滿,消除下方空白 */
+.drawer.chart-clean .dchart > .sec,
+.drawer.chart-clean .dchart .secbody,
+.drawer.chart-clean .drawer-chart-column,
+.drawer.chart-clean .kline-panel {
+  display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; border: none; padding: 0;
+}
+.drawer.chart-clean .kline-stage { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0 }
+.drawer.chart-clean .kline-chart { flex: 1 1 auto; min-height: 0; height: auto }
+/* 身分標頭縮短版移進右側明細欄頂部 */
+.dhead-min { padding: 15px 20px 12px }
+.dhead-min .dhead-top { align-items: center }
+.dhead-min h2 { font-size: var(--fs-h2) }
+
+/* 自訂 scrollbar(取代原生醜的)——抽屜/明細欄/表格 */
+.dbody, .dsections, .dchart, .tablewrap, .drawer {
+  scrollbar-width: thin; scrollbar-color: rgba(201, 203, 209, .3) transparent;
+}
+.dbody::-webkit-scrollbar, .dsections::-webkit-scrollbar, .dchart::-webkit-scrollbar, .tablewrap::-webkit-scrollbar {
+  width: 8px; height: 8px;
+}
+.dbody::-webkit-scrollbar-track, .dsections::-webkit-scrollbar-track, .dchart::-webkit-scrollbar-track, .tablewrap::-webkit-scrollbar-track { background: transparent }
+.dbody::-webkit-scrollbar-thumb, .dsections::-webkit-scrollbar-thumb, .dchart::-webkit-scrollbar-thumb, .tablewrap::-webkit-scrollbar-thumb {
+  background: rgba(201, 203, 209, .26); border-radius: 4px; border: 2px solid transparent; background-clip: padding-box;
+}
+.dbody::-webkit-scrollbar-thumb:hover, .dsections::-webkit-scrollbar-thumb:hover, .dchart::-webkit-scrollbar-thumb:hover, .tablewrap::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 203, 209, .5); background-clip: padding-box;
+}
+.kline-zoom-controls { position: absolute; z-index: 3; right: 12px; bottom: 12px; display: flex; overflow: hidden; border: 1px solid rgba(236, 236, 238, .22); border-radius: var(--r-sm); background: rgba(26, 26, 31, .9); box-shadow: var(--shadow-overlay) }
+.kline-zoom-controls button { display: grid; place-items: center; width: 34px; height: 32px; color: var(--ink-mid) }
+.kline-zoom-controls button + button { border-left: 1px solid var(--line) }
+.kline-zoom-controls button:hover { color: var(--gold); background: rgba(255, 255, 255, .06) }
+.kline-zoom-hint { position: absolute; z-index: 5; left: 50%; top: var(--sp-3); transform: translateX(-50%); max-width: calc(100% - 24px); padding: 7px 12px; border: 1px solid rgba(216, 219, 224, .4); border-radius: var(--r-full); color: var(--gold); background: rgba(26, 26, 31, .94); box-shadow: var(--shadow-overlay); font-size: 13px; white-space: nowrap; pointer-events: none }
+.kline-drawing-layer { position: absolute; inset: 0; z-index: 4; cursor: crosshair; touch-action: none; user-select: none; overscroll-behavior: contain }
+/* 選取模式游標:不再維持十字——空白=一般箭頭、hover 圖形=move、hover 端點=grab(!important 蓋過 klinecharts inline crosshair) */
+.kline-chart.sel-mode, .kline-chart.sel-mode * { cursor: default !important }
+.kline-chart.sel-mode.sel-hover-shape, .kline-chart.sel-mode.sel-hover-shape * { cursor: move !important }
+.kline-chart.sel-mode.sel-hover-handle, .kline-chart.sel-mode.sel-hover-handle * { cursor: grab !important }
+.kline-focus-toggle { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 var(--sp-2); border: 1px solid var(--line-strong); border-radius: var(--r-sm); color: var(--ink-mid); font-size: 12px }
+.kline-focus-toggle:hover { color: var(--gold); border-color: rgba(216, 219, 224, .45) }
+.kline-drawing-preview { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none }
+.kline-drawing-preview line, .kline-drawing-preview polyline { fill: none; stroke: var(--gold); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.kline-drawing-preview rect { fill: rgba(216, 219, 224, .12); stroke: var(--gold); stroke-width: 2 }
+.kline-drawing-preview circle { fill: var(--gold); stroke: #fff; stroke-width: 1 }
+.kline-drawing-instruction { position: absolute; left: 50%; top: var(--sp-2); transform: translateX(-50%); max-width: calc(100% - 24px); padding: 5px 10px; border: 1px solid rgba(216, 219, 224, .35); border-radius: 999px; color: var(--gold); background: rgba(26, 26, 31, .9); box-shadow: var(--shadow-overlay); font-size: 12px; white-space: nowrap; pointer-events: none }
+.kline-state { position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; gap: var(--sp-2); color: var(--ink-mid); background: rgba(19, 19, 22, .9); font-size: var(--fs-sub) }
+.kline-state.error { color: var(--up) }
+.kline-footer { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); border-top: 1px solid var(--line) }
+.kline-hint { margin: 0; padding: var(--sp-2) var(--sp-3); color: var(--ink-low); font-size: 12px }
+.kline-hint-info { display: inline-flex; align-items: center; gap: 4px; padding: var(--sp-2) var(--sp-3); color: var(--ink-low); font-size: 12px; transition: color .12s var(--ease) }
+.kline-hint-info:hover { color: var(--gold) }
+.kline-hint-info svg { width: 14px; height: 14px }
+.kline-details-shortcut { display: inline-flex; align-items: center; gap: 4px; flex: none; min-height: 32px; padding: 0 var(--sp-3); color: var(--gold); font-size: 12px; font-weight: 700 }
+.kline-details-shortcut:hover { background: rgba(216, 219, 224, .08) }
+.kseg button:hover:not(.active) { color: var(--ink-hi) }
+.spin { animation: spin 1s linear infinite }
+@keyframes spin { to { transform: rotate(360deg) } }
+
+/* 文字標註對話框 */
+.text-dialog-backdrop { animation: fade-in .2s var(--ease) both; position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: var(--sp-4); background: rgba(0, 0, 0, .72) }
+.text-dialog { animation: dialog-in .22s var(--ease) both; position: relative; width: min(440px, 100%); padding: var(--sp-5); border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: #1A1A1F; box-shadow: var(--shadow-overlay) }
+.text-dialog h3 { margin: 0 0 var(--sp-4); font-size: var(--fs-h2) }
+.text-dialog label { display: grid; gap: var(--sp-2); color: var(--ink-mid); font-size: var(--fs-label) }
+.text-dialog textarea { width: 100%; resize: vertical; padding: var(--sp-3); color: var(--ink-hi); background: #0B0B0D; border: 1px solid var(--line-strong); border-radius: var(--r-sm); font: inherit }
+.text-dialog-close { position: absolute; right: var(--sp-3); top: var(--sp-3); color: var(--ink-mid) }
+.text-dialog-meta { display: flex; justify-content: space-between; margin-top: 4px; color: var(--ink-low); font-size: 12px }
+.text-dialog-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); margin-top: var(--sp-4) }
+.text-dialog-actions button { min-height: 34px; padding: 0 var(--sp-4); color: var(--ink-mid); border: 1px solid var(--line-strong); border-radius: var(--r-sm) }
+.text-dialog-actions button.primary { color: #131316; background: var(--gold); border-color: var(--gold) }
+.text-dialog-actions button:disabled { opacity: .4 }
+
+/* hover ⓘ 說明 */
+.info { display: inline-flex; align-items: center; color: var(--ink-low); cursor: help; margin-left: 2px; vertical-align: -1px }
+.info:hover { color: var(--gold) }
+/* 去雜訊:kv 列裡的 ⓘ 降調(更小更淡),hover 才明顯,不搶每列視覺 */
+.kvrow dt .info { opacity: .45; margin-left: 3px }
+.kvrow dt .info:hover { opacity: 1 }
+.kvrow dt .info svg { width: 13px; height: 13px }
+.tipbox {
+  position: fixed; max-width: 320px; width: max-content; white-space: normal;
+  background: rgba(26, 26, 31, .96); border: 1px solid rgba(216, 219, 224, .35); color: var(--ink-hi);
+  font-size: var(--fs-label); font-weight: 400; line-height: 1.7; letter-spacing: 0; text-align: left;
+  padding: var(--sp-2) var(--sp-3); border-radius: var(--r-md); box-shadow: var(--shadow-overlay);
+  z-index: 200; pointer-events: none;   /* 要高於手機全螢幕抽屜(50)/scrim(45),否則 tooltip 被抽屜蓋住看不到 */
+  animation: tip-in .15s var(--ease) both;
+}
+.tipbox.tip-below { animation-name: tip-in-below }
+@keyframes tip-in { from { opacity: 0; transform: translateY(3px) } to { opacity: 1; transform: none } }
+@keyframes tip-in-below { from { opacity: 0; transform: translateY(-3px) } to { opacity: 1; transform: none } }
+/* ── 微互動共用 keyframes ── */
+@keyframes pop-in { from { opacity: 0; transform: translateY(-5px) scale(.98) } to { opacity: 1; transform: none } }
+@keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(6px) scale(.97) } to { opacity: 1; transform: none } }
+@keyframes chip-in { from { opacity: 0; transform: scale(.82) } to { opacity: 1; transform: none } }
+@keyframes slide-down { from { opacity: 0; transform: translateY(-9px) } to { opacity: 1; transform: none } }
+@keyframes table-fade { from { opacity: 0; transform: translateY(5px) } to { opacity: 1; transform: none } }
+@keyframes table-slide-r { from { opacity: 0; transform: translateX(34px) } to { opacity: 1; transform: none } }
+@keyframes table-slide-l { from { opacity: 0; transform: translateX(-34px) } to { opacity: 1; transform: none } }
+.tipbox .tip-desc { margin: 0 }
+.tipbox .tip-formula { margin: 8px 0 0; padding-top: 8px; border-top: 1px solid var(--line); color: var(--ink-mid); font-variant-numeric: tabular-nums }
+.tipbox .tip-flabel { color: var(--ink-low); font-size: 12px; letter-spacing: .08em; margin-right: 8px }
+
+/* ═══ RWD:窄螢幕改兩行摘要列、抽屜轉 bottom sheet ═══ */
+/* ═══ 平板(721–1024px):表格保留但表頭/內距收斂,搜尋不搶版位 ═══ */
+@media (max-width: 1279px) and (min-width: 840px) {
+  .bar1, .bar3 { padding: 0 20px }
+  .bar2 { padding: 0 14px }
+  .bar2 .search { width: 210px }
+  .deco-tr { width: 108px; opacity: .3 }
+  .tablewrap { padding: 0 20px }
+  thead th, tbody td { padding-left: 21px; padding-right: 21px }   /* 中寬螢幕欄距同步 1.5×(14→21) */
+}
+
+/* ═══ 手機(≤720px):表格→兩行摘要清單、搜尋獨立行、tabs 橫捲 ═══ */
+@media (max-width: 839px) {
+  .deco { display: none }                                  /* 花在窄螢幕太擠,收起 */
+  .bar1 { padding: 0 16px; gap: 10px; height: 56px }
+  .brand-badge { width: 32px; height: 32px }
+  .brand-badge svg { width: 16px; height: 16px }
+  .brand-word { font-size: 12.5px; letter-spacing: .07em }
+  .usermenu-btn { height: 32px; padding: 0 8px }
+  .usermenu-btn .um-nick, .usermenu-btn .um-caret { display: none }
+
+  /* bar2 手機只留搜尋一行 */
+  .bar2 { height: auto; align-items: stretch; padding: 8px 12px; border-top: 0 }
+  .bar2 .search { width: 100%; margin: 0; height: 40px }
+
+  /* 策略 Tab → 固定底部 Navbar(手機原生手感,比頂部橫捲好按) */
+  .bar2 .tabs {
+    position: fixed; left: 0; right: auto; bottom: 0; z-index: 40;
+    display: grid; grid-template-columns: repeat(3, 1fr); width: 100vw;   /* 3 個 nav → 各佔 1/3,平均分配不擠左 */
+    height: calc(60px + env(safe-area-inset-bottom, 0px));               /* 高度含安全區,底部貼齊不留縫 */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--l1); border-top: 1px solid var(--line-strong);
+  }
+  .bar2 .tabs .tab {
+    min-width: 0; box-sizing: border-box;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; padding: 7px 4px; font-size: 12px; text-align: center; letter-spacing: 0;
+    white-space: nowrap; overflow: hidden;
+  }
+  .bar2 .tabs .tab svg { width: 21px; height: 21px; opacity: .9; flex: 0 0 auto }
+  .bar2 .tabs .tab .ct { display: none }                 /* 底部 nav 不塞計數,保持乾淨 */
+  .bar2 .tabs .tab .tlbl { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+  .bar2 .tabs .tab.on::after { top: 0; bottom: auto; left: 24%; right: 24%; height: 2.5px }
+
+  .bar3 { height: auto; min-height: 46px; flex-wrap: wrap; gap: 6px 8px; padding: 8px 16px }
+  /* 頂部 chrome 填實色 = 清單同色(var(--l0)),消除「bar3 透明露漸層 vs 標題實色」的色差接縫 */
+  .bar1, .bar2, .chiprow, .bar3 { background: var(--l0) }
+  .crit { margin-left: 0; width: 100%; white-space: normal; overflow: visible; line-height: 1.5 }
+
+  /* 手機:改用「以現股為組別」的組卡(不橫向捲表格,免左右滑就看到關鍵指標=更好的手機 UX) */
+  table { display: none }
+  .mlist { display: block; min-width: max-content }   /* 內容比視窗寬 → 橫向滑 */
+  .tablewrap {
+    padding: 0 0 calc(88px + env(safe-area-inset-bottom, 0px)); overflow: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; -ms-overflow-style: none;   /* 表頭 sticky 上方無縫,內容不透過 */
+  }
+  .tablewrap::-webkit-scrollbar { display: none }
+  .pagenotice { display: none }                            /* 手機移除干擾的免責頁尾 */
+  /* 手機抽屜=全螢幕 detail 視圖,z-index 拉到底部 nav(40)之上,才不會被 nav 擋住底部內容(CBAS 試算) */
+  .scrim { z-index: 45 }
+  .drawer { top: 0; left: 0; right: 0; bottom: 0; width: 100%; border-left: 0; transform: translateY(100%); z-index: 50 }
+  .drawer.on { transform: none }
+  .drawer.focus-mode { width: 100% }
+  .kline-panel { margin-left: 0; margin-right: 0 }
+  /* 手機 K 線:放大近滿頁,留約一行給下方關鍵指標露出=可下滑提示;最優化畫圖空間 */
+  .kline-chart { height: calc(100dvh - 270px) }   /* 底部露出 ~1-1.5 行明細(關鍵指標),提示下面還有內容可滑 */
+  .kline-stage { min-height: 0 }
+  .kline-controls { min-height: 42px; padding: var(--sp-1) 6px; gap: 5px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none }
+  .kline-controls::-webkit-scrollbar { display: none }
+  .kline-controls > * { flex: 0 0 auto }
+  /* 收緊所有控制鈕,五組(標的/週期/主圖/副圖/收合)塞進一行不溢出 */
+  .kseg button { min-height: 32px; padding: 0 13px; font-size: 13px }
+  .kpill { min-height: 34px; gap: 2px; padding: 0 3px 0 9px }
+  .kpill.kpill-plain { padding-left: 5px }
+  .kpill-btn { min-height: 32px; padding: 0 1px 0 3px; font-size: 13px }
+  .dtool-focus { display: none }   /* 手機抽屜已滿版,放大鈕無意義 */
+  .kline-sub-toggle { min-width: 30px; min-height: 32px }
+  .kline-ohlc { font-size: 12px }
+  .draw-tool:not(.compact) > span { display: none }
+  .draw-tool { min-width: 40px; min-height: 40px; padding: 4px }
+  .draw-tools-style { display: none }
+  .draw-menu-style-mobile { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); padding: var(--sp-2); border-bottom: 1px solid var(--line) }
+  .draw-menu-style-mobile label { display: grid; gap: 3px; color: var(--ink-low); font-size: 12px }
+  .draw-menu-style-mobile input, .draw-menu-style-mobile select { width: 100%; min-height: 28px; color: var(--ink-hi); background: #0B0B0D; border: 1px solid var(--line-strong); border-radius: 4px }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, .drawer, .scrim { transition: none !important; animation: none !important }
+}
+
+/* ═══════════ 桌面三欄工作區(規格 16 定案 A+修訂;僅 ≥1280 且 .dws 分支渲染時生效)═══════════ */
+@media (min-width: 840px) {
+  /* 0.8× 字級(桌面資訊密度;手機字級不動=長輩版 1.2×) */
+  .dws { --fs-label: 11px; --fs-sub: 13px; --fs-body: 14px; --fs-h2: 15px; --fs-display: 27px }
+  .dws .livepill, .dws .pagenotice { display: none }   /* 定案:桌面去掉即時 pill 與免責列 */
+
+  /* 頂列:品牌 + 使用者;52px、L1 底、髮絲下緣 */
+  .dws-top { display: flex; align-items: center; gap: var(--sp-4); height: 52px; padding: 0 var(--sp-4); background: var(--l1); border-bottom: 1px solid var(--line-strong); flex: 0 0 auto }
+  .dws-top .brand-badge { width: 30px; height: 30px }
+  .dws-top .brand-word { font-size: 13px }
+
+  /* 三欄 grid:左清單 | 拖桿 | 中K線 | 拖桿 | 右明細 */
+  .dws-cols { flex: 1; min-height: 0; display: grid; position: relative; background: var(--l0) }
+  /* 明確指定每項的 grid-column:peek 時 .dws-left 變絕對定位脫離 flow,其他項不會自動補位移位 */
+  .dws-cols > .dws-left, .dws-cols > .dws-rail--l { grid-column: 1 }
+  .dws-cols > .dws-sep--l { grid-column: 2 }
+  .dws-cols > .dws-center { grid-column: 3 }
+  .dws-cols > .dws-sep--r { grid-column: 4 }
+  .dws-cols > .dws-right, .dws-cols > .dws-rail--r { grid-column: 5 }
+  /* 浮層(hover peek 或拖曳中):清單/明細絕對定位浮在 K 線上,中間 K 線完全不縮放 → 圖零擾動、
+     畫線不跑。拖曳時寬度跟著手指(無動畫);hover peek 進場才用 clip-path 從基準寬揭開(GPU、不卡)。 */
+  .dws-left.is-peek { position: absolute; top: 0; left: 0; bottom: 0; z-index: 25; box-shadow: 10px 0 40px rgba(0, 0, 0, .55) }
+  .dws-left.is-peek.is-anim { animation: peek-grow .2s var(--ease) }
+  @keyframes peek-grow { from { clip-path: inset(0 var(--peek-hide) 0 0) } to { clip-path: inset(0 0 0 0) } }
+  .dws-right.is-peek-r { position: absolute; top: 0; right: 0; bottom: 0; z-index: 25; box-shadow: -10px 0 40px rgba(0, 0, 0, .55) }
+  /* 浮層時藏掉停在已提交寬處的原分隔線(避免浮層後面殘留一條邊線) */
+  .dws-cols.l-overlay > .dws-sep--l, .dws-cols.r-overlay > .dws-sep--r { opacity: 0; pointer-events: none }
+  .dws-peek-grip { position: absolute; top: 0; bottom: 0; right: 0; width: 8px; z-index: 26; cursor: col-resize; touch-action: none }
+  .dws-peek-grip::after { content: ''; position: absolute; top: 0; bottom: 0; right: 2px; width: 1px; background: var(--line); transition: background var(--t-hover) var(--ease), width var(--t-hover) var(--ease) }
+  .dws-peek-grip:hover::after, .dws-peek-grip:active::after { right: 1px; width: 3px; background: var(--brand-lift) }
+  .dws-sep { position: relative; z-index: 40; cursor: col-resize; touch-action: none; background: transparent }
+  /* 命中熱區左右各外擴 7px(視覺仍 1px 細線)→ 抓得到、按下不彈;蓋過左欄邊緣的 hover 觸發 */
+  .dws-sep::before { content: ''; position: absolute; top: 0; bottom: 0; left: -11px; right: -11px }
+  .dws-sep::after { content: ''; position: absolute; top: 0; bottom: 0; left: 2px; width: 1px; background: var(--line); transition: background var(--t-hover) var(--ease), width var(--t-hover) var(--ease) }
+  .dws-sep:hover::after, .dws-sep:active::after { left: 1px; width: 3px; background: var(--brand-lift) }
+
+  /* 左欄:tab → chips/清單列 → 搜尋 → 篩選 → 清單(m7 列式,橫向可捲、名稱欄凍結) */
+  .dws-left { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--l0); container-type: inline-size }
+  .dws-ltabs { border-bottom: 1px solid var(--line); padding: 0 4px }
+  .dws-ltabs .tabs { position: relative; display: flex; width: 100%; flex-wrap: nowrap }
+  .dws-ltabs .tab { flex: 1 1 0; min-width: 0; justify-content: center; padding: 10px 4px; font-size: 13px; white-space: nowrap; overflow: hidden }
+  .dws-ltabs .tab svg { width: 16px; height: 16px; flex: 0 0 auto }
+  .dws-ltabs .tab .tlbl { overflow: hidden; text-overflow: ellipsis }
+  .dws-ltabs .tab .ct { font-size: 10px; flex: 0 0 auto }
+  /* 左欄變窄的 RWD:先丟計數、再丟文字(只留 icon),絕不換行堆疊 */
+  @container (max-width: 300px) { .dws-ltabs .tab .ct { display: none } }
+  @container (max-width: 232px) { .dws-ltabs .tab .tlbl { display: none } .dws-ltabs .tab { gap: 0 } }
+
+  /* 自動展開 toggle(篩選左側):on=品牌 accent、off=灰 */
+  .aexp-toggle { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 28px; flex: 0 0 auto;
+    color: var(--ink-low); background: transparent; border: 1px solid var(--line-strong); border-radius: var(--r-sm);
+    transition: color var(--t-hover) var(--ease), border-color var(--t-hover) var(--ease), background var(--t-hover) var(--ease) }
+  .aexp-toggle:hover { color: var(--ink-hi) }
+  .aexp-toggle.on { color: var(--gold); border-color: rgba(216, 219, 224, .45); background: var(--gold-wash) }
+  /* AUTO 字樣鈕:寬度隨字,uppercase 小標籤規格(11px/600/加字距) */
+  .aexp-toggle.aexp-auto { width: auto; padding: 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .05em }
+  .dws .chiprow { padding: 8px 10px; background: var(--l0) }
+  .dws-lsearch { padding: 8px 10px 0 }
+  .dws-lsearch .search { width: 100%; height: 34px }
+  .dws .bar3 { height: auto; min-height: 38px; flex-wrap: wrap; gap: 5px 7px; padding: 7px 10px; background: var(--l0) }
+  .dws .bar3 .crit { margin-left: 0; width: 100%; font-size: 11px; white-space: normal; line-height: 1.45 }
+  .dws-left .tablewrap { flex: 1; min-height: 0; overflow: auto; padding: 0 }
+  .dws-left table { display: none }
+  .dws-left .mlist { display: block; min-width: max-content }
+  /* m7 欄寬/字級縮到 0.8× 密度(名稱欄凍結沿用) */
+  /* 欄位彈性(minmax+fr):面板拉寬時內容跟著攤開填滿,不再右側留白;窄時保底最小寬(超出橫向捲) */
+  .dws-left .m7 { grid-template-columns: minmax(168px, 1.6fr) minmax(56px, 1fr) minmax(52px, 1fr) minmax(42px, .9fr) minmax(48px, 1fr) minmax(56px, 1fr); column-gap: 16px }
+  .dws-left .m7 .c-name { padding-left: 12px }
+  .dws-left .m7-head { min-height: 44px; font-size: 12px }
+  .dws-left .m7-head i { font-size: 10px }
+  .dws-left .m7-stk { min-height: 42px }
+  .dws-left .m7-stk .c-name b { font-size: 14px }
+  .dws-left .m7-stk .c-name i, .dws-left .m7-cb .c-name > i { font-size: 12px }
+  .dws-left .m7-stk .c-px, .dws-left .m7-cb .c-px { font-size: 13px }
+  .dws-left .m7-cb { min-height: 40px }
+  .dws-left .m7-cb .c-name { font-size: 12px }
+  .dws-left .m7-cb > span { font-size: 12px }
+  /* 選中列:底色升一階 + 左緣 2px 金指示條(雙重編碼);hover=金 wash */
+  /* hover 用「不透明」底色:名稱欄(sticky 自帶底)與列底同色,名稱區不再疊色 */
+  .dws-left .m7-cb:hover { background: var(--l1) }
+  .dws-left .m7-cb:hover .c-name { background: var(--l1) }
+  .dws-left .m7-cb.cur { background: var(--l2); box-shadow: inset 2px 0 0 var(--gold) }
+  .dws-left .m7-cb.cur .c-name { background: var(--l2) }
+  .dws-left .m7-cb.cur:hover { background: var(--l2) }
+  .dws-left .m7-cb.cur:hover .c-name { background: var(--l2) }
+  /* 左欄捲軸:細 overlay 式 */
+  .dws-left .tablewrap { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.18) transparent }
+
+  /* 中欄:K 線 flex 填滿(仿 drawer chart-clean 鏈) */
+  .dws-center { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--l0); container-type: inline-size }
+  /* 中欄被壓窄時的 RWD(依「面板寬」非視窗寬):控制列/工具列逐級緊湊,永遠單行+可橫捲 */
+  @container (max-width: 620px) {
+    .dws-center .kseg button { padding: 0 16px }
+    .dws-center .kpill { padding: 0 6px 0 12px }
+    .dws-center .kline-controls { gap: var(--sp-1); padding: var(--sp-2) var(--sp-2) }
+    .dws-center .draw-toolbar { overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap }
+  }
+  @container (max-width: 430px) {
+    .dws-center .kseg button { padding: 0 10px; font-size: 13px }
+    .dws-center .kpill-lbl { font-size: 13px }
+    .dws-center .draw-tool span { display: none }   /* 工具只留 icon,標籤藏起 */
+  }
+  /* 膠囊控制列:僅「寬度」放大(字級/高度回原本大小)。
+     單行不換行——放得下=均分(space-between),放不下=橫向捲動,絕不跨兩行。
+     max-width 封頂:面板再寬,群組間距到 720 就不再拉開(拉太散難點擊),置中維持構圖平衡。 */
+  .dws-center .kline-controls { flex-wrap: nowrap; justify-content: space-between; gap: var(--sp-2);
+    max-width: 690px; margin-inline: auto; width: 100%; box-sizing: border-box;
+    padding: var(--sp-2) var(--sp-4); overflow-x: auto; scrollbar-width: none }
+  .dws-center .kline-controls::-webkit-scrollbar { display: none }
+  .dws-center .kline-controls > * { flex: 0 0 auto }
+  .dws-center .kseg button { min-height: 30px; padding: 0 30px; font-size: 14px }
+  .dws-center .kpill { min-height: 34px; padding: 0 9px 0 22px; font-size: 14px }
+  .dws-center .kpill-btn { min-height: 30px; padding: 0 3px 0 5px; font-size: 14px }
+  .dws-center .kpill-lbl { font-size: 14px }
+  /* 中欄收合成線:保留 KLinePanel 掛載(不重建),只隱藏內容 + 顯示展開 chevron */
+  .dws-center.is-collapsed { position: relative; overflow: hidden; background: var(--l1); cursor: pointer }
+  .dws-center.is-collapsed::after { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; transform: translateX(-.5px); background: var(--line-strong) }
+  .dws-center.is-collapsed > *:not(.dws-center-expand) { visibility: hidden; pointer-events: none }
+  .dws-center-expand { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2 }
+  /* 左欄 hover 展開/收合平滑過渡;拖欄期間關閉(即時跟手) */
+  /* 欄寬:hover 展開/收起=滑順過渡動畫;拖曳中=瞬間跟手(dragging 關掉過渡)。
+     383 列卡頓已用清單列 content-visibility(只繪可見列)解掉;畫線在動畫期間靠
+     KLinePanel 的 rAF 逐幀重繪跟上(chart.resize→下一幀 overlay 重繪),不錯位不裁切。 */
+  .dws-cols { transition: grid-template-columns .26s var(--ease) }
+  .dws-cols.dragging { transition: none }
+  /* 383 列動畫卡頓:兩個根因一起解——
+     (1) 清單 min-width:max-content 每幀量測全列算最寬 → 固定 502px(桌面列寬本固定)免逐幀重算;
+     (2) 名稱欄 sticky 在 383 列上每幀重算位置 → content-visibility 讓視窗外的列跳過佈局/繪製/sticky
+         計算(只算可見 ~15 列),contain-intrinsic-size 給佔位尺寸穩定捲軸與水平寬。 */
+  /* 內容跟著面板寬攤開(width:100%);min-width 保底(窄於 502 橫向捲)。動畫效能由
+     DataTable memo(React 不逐幀重建)+ content-visibility(視窗外列跳過佈局)承擔。 */
+  .dws-left .mlist { min-width: 502px; width: 100% }
+  .dws-left .m7 { min-width: 502px; width: 100% }
+  .dws-left .m7-cb, .dws-left .m7-stk { content-visibility: auto; contain-intrinsic-size: 502px 42px }
+
+  /* 收合條(一條垂直線 + 中央側向 chevron):點擊或拖動皆可展開 */
+  .dws-rail { position: relative; min-width: 0; background: var(--l1); cursor: ew-resize;
+    display: flex; align-items: center; justify-content: center }
+  .dws-rail::after { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; transform: translateX(-.5px); background: var(--line-strong) }
+  .dws-rail-chev { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center;
+    width: 22px; height: 46px; border-radius: var(--r-full); color: var(--ink-mid);
+    background: var(--l2); border: 1px solid var(--line-strong); box-shadow: var(--shadow-overlay);
+    transition: color var(--t-hover) var(--ease), border-color var(--t-hover) var(--ease) }
+  .dws-rail:hover .dws-rail-chev { color: var(--gold); border-color: rgba(216, 219, 224, .5) }
+  .dws-center .kline-panel { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column }
+  .dws-center .kline-stage { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0 }
+  .dws-center .kline-chart { flex: 1 1 auto; min-height: 0; height: auto }
+  .dws-center .dtool-focus { display: none }
+
+  /* K 線分割 v3(規格 17):全域控制帶(一份)+ 左右兩格(可拖比例);
+     左圖 Y 軸鏡像到左外緣,兩圖 K 棒在中間相鄰,消掉數值溝。 */
+  .dws-split-wrap { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; min-height: 0 }
+  /* 全域控制帶:一行,選擇器群 + 畫線工具列(工具列吃剩餘寬、可橫捲) */
+  .dws-splitbar { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3);
+    border-bottom: 1px solid var(--line); flex: 0 0 auto; min-width: 0 }
+  .dws-splitbar > * { flex: 0 0 auto; white-space: nowrap }   /* 選擇器群不折行不擠壓 */
+  .dws-splitbar .kpill-lbl { white-space: nowrap }
+  .dws-splitbar .draw-toolbar { border: none; padding: 0; margin: 0; flex: 1 1 auto; min-width: 0;
+    overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap }
+  .dws-splitbar .draw-toolbar::-webkit-scrollbar { display: none }
+  .dws-split { display: flex; flex-direction: row; flex: 1 1 auto; min-width: 0; min-height: 0 }
+  .dws-split-pane { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column;
+    overflow: hidden; container-type: inline-size }
+  .dws-split-pane .kline-panel { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column }
+  .dws-split-pane .kline-stage { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0 }
+  .dws-split-pane .kline-chart { flex: 1 1 auto; min-height: 0; height: auto }
+  /* 可拖分隔線:8px 把手(視覺 1px 線置中),hover/拖曳金色 */
+  .dws-split-sep { flex: 0 0 8px; cursor: col-resize; position: relative; touch-action: none }
+  .dws-split-sep::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px;
+    background: var(--line); transition: background .14s var(--ease) }
+  .dws-split-sep:hover::before, .dws-split-sep:active::before { background: rgba(216, 219, 224, .6) }
+  /* 分割格頭:小號軌標籤內嵌 OHLC 列;焦點格金邊=全域工具列動作目標 */
+  .dws-split-pane .kline-ohlc { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none }
+  .dws-split-pane .kline-ohlc::-webkit-scrollbar { display: none }
+  .dws-split-pane .kline-ohlc span, .dws-split-pane .kline-ohlc b { white-space: nowrap; flex: 0 0 auto }
+  .kseg-fixed--sm { min-height: 22px; padding: 0 10px; font-size: 12px; margin-right: 4px }
+  .kseg-fixed--sm.focused { border-color: rgba(216, 219, 224, .65) }
+  /* 鎖定軌標籤(取代 seg):與膠囊同高、金字辨識標的 */
+  .kseg-fixed { display: inline-flex; align-items: center; min-height: 30px; padding: 0 14px;
+    border-radius: 999px; border: 1px solid var(--line); color: var(--gold); font-size: 13px;
+    font-weight: 700; white-space: nowrap; background: var(--l1) }
+  /* 分割開關鈕:icon 膠囊;啟用=金 */
+  .ksplit-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 34px;
+    min-height: 30px; border-radius: 999px; border: 1px solid var(--line); background: var(--l1);
+    color: var(--ink-mid); cursor: pointer; transition: color .14s var(--ease), border-color .14s var(--ease) }
+  .ksplit-btn:hover:not(:disabled) { color: var(--ink-hi); border-color: rgba(216, 219, 224, .5) }
+  .ksplit-btn.active { color: var(--gold); border-color: rgba(216, 219, 224, .6) }
+  .ksplit-btn:disabled { opacity: .4; cursor: not-allowed }
+
+  /* 右欄:明細(欄頭 + 五節,獨立捲動) */
+  .dws-right { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--l1) }
+  .dws-dethead { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: 12px 16px; border-bottom: 1px solid var(--line); flex: 0 0 auto }
+  .dws-dethead h2 { margin: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; font-size: 16px; color: var(--ink-hi); min-width: 0 }
+  .dws-dethead h2 .code { color: var(--ink-low); font-size: 12px }
+  .dws-dethead h2 .dstk-badge { font-size: 11px; color: var(--ink-mid) }
+  /* 明細分節滿版:去掉外圈留白,section 直接貼欄邊(內距由 sechead/secbody 自帶) */
+  /* 右欄明細區塊 tab:橫向捲、目前區塊金字底線;點/捲即跳(scroll-spy) */
+  .det-tabs { display: flex; gap: 2px; flex: 0 0 auto; padding: 0 8px; border-bottom: 1px solid var(--line);
+    overflow-x: auto; scrollbar-width: none; background: var(--l1) }
+  .det-tabs::-webkit-scrollbar { display: none }
+  .det-tab { position: relative; flex: 0 0 auto; padding: 9px 10px; font-size: 12px; color: var(--ink-mid);
+    background: transparent; white-space: nowrap; transition: color var(--t-hover) var(--ease) }
+  .det-tab:hover { color: var(--ink-hi) }
+  .det-tab.on { color: var(--gold) }
+  .det-tab.on::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--gold) }
+  .dws-dsections { flex: 1; min-height: 0; overflow-y: auto; padding: 0 0 24px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.18) transparent }
+  .dws-dsections > div { scroll-margin-top: 4px }
+  .dws-dsections .sechead { padding-left: 16px; padding-right: 16px }
+  .dws-dsections .secbody { padding-left: 16px !important; padding-right: 16px !important }
+
+  /* 空狀態(M3:並排模式無選中時不留白板) */
+  .dws-empty { flex: 1; display: grid; place-items: center; color: var(--ink-low); font-size: var(--fs-sub) }
+}
+
+/* ── 平板兩欄(840–1279,.dws--two):明細=抽屜;浮動明細鈕在圖區右上 ── */
+@media (min-width: 840px) {
+  .dws-detbtn { position: absolute; top: 8px; right: 10px; z-index: 24; min-height: 30px; padding: 0 12px;
+    color: var(--ink-mid); background: rgba(26, 26, 31, .9); border: 1px solid var(--line-strong); border-radius: var(--r-full);
+    font-size: 12px; transition: color var(--t-hover) var(--ease), border-color var(--t-hover) var(--ease) }
+  .dws-detbtn:hover { color: var(--gold); border-color: rgba(216, 219, 224, .45) }
+  .dws-center { position: relative }
+  .dws--two .drawer { z-index: 50 }
+  .dws--two .drawer .dtool-focus { display: none }   /* 抽屜只放明細,放大鈕無意義 */
+}
