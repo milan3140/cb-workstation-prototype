@@ -3,6 +3,7 @@
    - 未登入(guest):只存 localStorage(本地清單,不同步)。
    資料形狀:[{ id, name, codes: string[] }]  (codes = CB 代號)。 */
 import { apiFetch } from './dataSource.js'
+import { sheetSyncEnabled, fetchLists, pushLists } from './sync/sheetSync.js'
 
 export const MAX_LISTS = 10
 const LS_KEY = 'signal_watchlists'
@@ -48,9 +49,13 @@ export function saveLocal(lists) {
   try { localStorage.setItem(LS_KEY, JSON.stringify(lists)) } catch { /* noop */ }
 }
 
-// 登入後從後端讀正本;未登入/無後端 → null(呼叫端沿用本地)
+// 登入後從後端讀正本(分帳號);未登入/無後端 → null(呼叫端沿用本地)
 export async function fetchRemote(signal) {
   try {
+    if (sheetSyncEnabled()) {
+      const lists = await fetchLists(signal)
+      return lists ? normalize(lists) : null
+    }
     const res = await apiFetch('watchlists', { signal })
     if (!res || !res.ok) return null
     const data = await res.json()
@@ -61,9 +66,10 @@ export async function fetchRemote(signal) {
   }
 }
 
-// 變動時整包 PUT(前端持有正本;UI 保證同會員不併發寫)。回傳 true=成功
+// 變動時整包 PUT(前端持有正本;UI 保證同帳號不併發寫)。回傳 true=成功
 export async function pushRemote(lists) {
   try {
+    if (sheetSyncEnabled()) return await pushLists(normalize(lists))
     const res = await apiFetch('watchlists', { method: 'PUT', body: { lists } })
     return !!(res && res.ok)
   } catch { return false }

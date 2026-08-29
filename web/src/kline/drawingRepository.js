@@ -1,10 +1,11 @@
 import { makeDrawingDocument, normalizeDrawingDocument } from './schema.js'
 import { apiFetch } from '../dataSource.js'
+import { sheetSyncEnabled, fetchShapes, pushShapes } from '../sync/sheetSync.js'
 
 const DB_NAME = 'signal-cb-production'
 const DB_VERSION = 2
 const STORE_NAME = 'chartDrawings'
-// 林恩如自製 canvas overlay 的原生 shape 模型（{id,type,x1,y1,x2,y2,region,points,text,...}）。
+// 自製 canvas overlay 的原生 shape 模型（{id,type,x1,y1,x2,y2,region,points,text,...}）。
 // 與內建 klinecharts overlay 的 schema 不同（後者只留 {timestamp,value} 點 + name 列舉），
 // 因此存在獨立的 object store，避免 schema.normalizeDrawing 把 type/region/vline 等欄位洗掉。
 const SHAPE_STORE = 'signalCanvasShapes'
@@ -123,10 +124,16 @@ export async function saveShapes(symbol, period, shapes) {
   }).finally(() => db.close())
 }
 
-// ===== 畫線雲端同步(登入會員;後端 cb-workstation-data /api/drawings,Google Sheet 正本) =====
-// 模式照關注清單:登入=雲端正本+IndexedDB 離線快取;未登入/無後端/失敗=回 null,呼叫端沿用本地。
+// ===== 畫線雲端同步(分帳號) =====
+// 兩條後端擇一:①Apps Script + Google Sheet(sheetSync,分帳號 by Google email)——原型預設;
+//              ②舊有 /api/drawings(apiFetch,by OIDC 會員)——接自建後端時用。
+// 都沒啟用/未登入/失敗 → 回 null,呼叫端沿用本地(IndexedDB)。
 export async function fetchCloudShapes(symbol, period, signal) {
   try {
+    if (sheetSyncEnabled()) {
+      const d = await fetchShapes(symbol, period, signal)
+      return d ? { shapes: sanitizeShapes(d.shapes), updatedAt: d.updatedAt } : null
+    }
     const res = await apiFetch(`drawings/${encodeURIComponent(symbol)}/${encodeURIComponent(period)}`, { signal })
     if (!res || !res.ok) return null
     const data = await res.json()
@@ -140,6 +147,7 @@ export async function fetchCloudShapes(symbol, period, signal) {
 // 回傳 true=已同步雲端;false=未登入/失敗(本地已存,下次變更會再試)
 export async function pushCloudShapes(symbol, period, shapes) {
   try {
+    if (sheetSyncEnabled()) return await pushShapes(symbol, period, sanitizeShapes(shapes))
     const res = await apiFetch(`drawings/${encodeURIComponent(symbol)}/${encodeURIComponent(period)}`, {
       method: 'PUT', body: { shapes: sanitizeShapes(shapes) },
     })

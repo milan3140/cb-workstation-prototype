@@ -1,5 +1,5 @@
 /**
- * DrawingOverlay — 圖表無關的自製畫線引擎，移植自林恩如的 canvas overlay（DrawingOverlay.vue）。
+ * DrawingOverlay — 圖表無關的自製畫線引擎，移植自自製 canvas overlay（DrawingOverlay.vue）。
  *
  * 座標系統：所有 shape 以「資料座標」儲存（x = 時間戳 timestamp、y = 價格/量值），
  * 透過注入的 toPixel/fromPixel 與圖表庫的像素座標互轉，讓劃線跟著捲動/縮放/換週期一起移動、

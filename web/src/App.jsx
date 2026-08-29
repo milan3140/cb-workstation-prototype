@@ -19,6 +19,8 @@ const LAYOUT_KEY = 'cbw_desktop_layout2'  // v2:收起寬預設改窄(到第三�
 // 乖離類指標(距轉換價/股債乖離)差距小=更貼近=更該看 → 首點升冪;其餘首點降冪
 const ASC_FIRST = new Set(['convDist', 'dev', 'devHero'])
 import { loadLocal, saveLocal, fetchRemote, pushRemote, makeList, MAX_LISTS } from './watchlists.js'
+import { restore as restoreGoogle, onAuthChange as onGoogleAuth, googleEnabled } from './sync/googleAuth.js'
+import GoogleSignIn from './sync/GoogleSignIn.jsx'
 
 const fmtDate = s => `${s.slice(0, 4)}/${s.slice(4, 6)}/${s.slice(6, 8)}`
 // 資料日落後天數(以資料日當天台北 16:00 起算);>4 天=超過正常週末間隔,視為更新中斷
@@ -50,6 +52,14 @@ const STRAT_FILTERS = {
 
 export default function App() {
   const auth = useAuth()                           // { user, logout, switchAccount }
+  const [gUser, setGUser] = useState(null)         // Google 登入者(分帳號雲端同步的身分)
+  useEffect(() => {                                // 還原上次 Google 登入 + 訂閱變化
+    if (!googleEnabled()) return undefined
+    const off = onGoogleAuth(setGUser)
+    restoreGoogle().then(setGUser).catch(() => {})
+    return off
+  }, [])
+  const syncUser = auth.user || gUser              // 任一身分在 = 可雲端同步
   const [userMenu, setUserMenu] = useState(false)  // 右上使用者選單開合
   const [data, setData] = useState(null)          // {today, rows}
   const [stratId, setStratId] = useState('pick')  // 底部導覽:精選訊號(預設)/全市場/我的關注
@@ -64,7 +74,7 @@ export default function App() {
   const pushTimer = useRef()
   const commitLists = next => {   // 本地即存;登入時 debounce 整包 PUT 到後端
     setLists(next); saveLocal(next)
-    if (auth.user) { clearTimeout(pushTimer.current); pushTimer.current = setTimeout(() => pushRemote(next), 600) }
+    if (syncUser) { clearTimeout(pushTimer.current); pushTimer.current = setTimeout(() => pushRemote(next), 600) }
   }
   const toggleWatch = useCallback(code => {   // 加/移到「目前這份」清單(useCallback:DataTable memo 依賴穩定 props)
     const cur = lists.find(l => l.id === activeListId) || lists[0]
@@ -299,7 +309,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {   // 登入後合併:後端(有股票的清單)為正本 + 本地獨有的清單(尤其還沒加股票的空清單,後端不建群組)保留
-    if (!auth.user) return undefined
+    if (!syncUser) return undefined
     const ac = new AbortController()
     fetchRemote(ac.signal).then(remote => {
       if (!remote) return
@@ -515,6 +525,8 @@ export default function App() {
       )}
     </div>
   )
+  // 頁首帳號區:Google 登入(分帳號雲端同步入口)+ 既有 OIDC 選單
+  const accountEl = <>{googleEnabled() && <GoogleSignIn user={gUser} />}{userMenuEl}</>
   const indW = Math.max(16, tabInd.w - 24)   // 底線=tab 寬置中內縮 12px 兩側
   const tabsNav = (
     <nav className="tabs" role="tablist" aria-label="策略切換" ref={tabsNavRef}>
@@ -662,7 +674,7 @@ export default function App() {
             <span className="brand-badge" aria-hidden><img src={brandDiamond} alt="" /></span>
             <span className="brand-word">CB<i>×</i>STOCK<i>×</i>WORKSTATION</span>
           </div>
-          {userMenuEl}
+          {accountEl}
         </div>
         {staleEl}
         <div className={`dws-cols${drag ? ' dragging' : ''}`} style={{ gridTemplateColumns: gridCols }}>
@@ -811,7 +823,7 @@ export default function App() {
           <span className="brand-badge" aria-hidden><img src={brandDiamond} alt="" /></span>
           <span className="brand-word">CB<i>×</i>STOCK<i>×</i>WORKSTATION</span>
         </div>
-        {userMenuEl}
+        {accountEl}
       </div>
 
       {/* ── 第 2 列:策略頁籤 + 搜尋(同一行) ── */}
