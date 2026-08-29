@@ -1264,7 +1264,7 @@ td.stratcol { padding-top: 11px; padding-bottom: 11px }
   .dws--two .drawer .dtool-focus { display: none }   /* 抽屜只放明細,放大鈕無意義 */
 }
 
-/* ── 頁首帳號區(靠右)+ 自訂 Google 登入 UI(玻璃質感、統一字體、hover) ── */
+/* ── 頁首帳號區(靠右)+ 自建帳號登入/註冊 UI(玻璃質感、統一字體、hover) ── */
 .account-area { margin-left: auto; display: flex; align-items: center; gap: var(--sp-3); flex: 0 0 auto; font-family: var(--font-sans); }
 
 /* 未登入:玻璃登入按鈕 */
@@ -1366,3 +1366,41 @@ td.stratcol { padding-top: 11px; padding-bottom: 11px }
   animation: acct-spin .8s linear infinite;
 }
 @keyframes acct-spin { to { transform: rotate(360deg); } }
+
+/* ── 登入 / 註冊彈窗(自建帳號)── */
+.auth-overlay {
+  position: fixed; inset: 0; z-index: 300; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  font-family: var(--font-sans);
+}
+.auth-modal {
+  position: relative; width: min(400px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 12px;
+  padding: 26px 24px 24px; border-radius: var(--r-xl); border: 1px solid var(--line-strong);
+  background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-overlay); color: var(--ink-hi);
+}
+.auth-close { position: absolute; top: 12px; right: 12px; display: grid; place-items: center; width: 30px; height: 30px;
+  border: 0; background: transparent; color: var(--ink-low); cursor: pointer; border-radius: 50%; }
+.auth-close:hover { color: var(--ink-hi); background: var(--surface-3); }
+.auth-title { margin: 0; font-size: var(--fs-display); font-family: var(--font-display); font-weight: 600; }
+.auth-sub { margin: 0 0 4px; color: var(--ink-mid); font-size: var(--fs-label); line-height: 1.5; }
+.auth-tabs { display: flex; gap: 4px; padding: 4px; background: var(--l0); border-radius: var(--r-full); }
+.auth-tabs button { flex: 1; padding: 8px; border: 0; border-radius: var(--r-full); background: transparent;
+  color: var(--ink-mid); cursor: pointer; font-family: var(--font-sans); font-size: var(--fs-label); transition: all var(--t-hover) var(--ease); }
+.auth-tabs button.on { background: var(--l3); color: var(--ink-hi); }
+.auth-field { display: flex; flex-direction: column; gap: 5px; font-size: var(--fs-label); color: var(--ink-mid); }
+.auth-field input {
+  padding: 11px 13px; border-radius: var(--r-md); border: 1px solid var(--line-strong);
+  background: var(--l0); color: var(--ink-hi); font-family: var(--font-sans); font-size: var(--fs-body); outline: none;
+  transition: border-color var(--t-hover) var(--ease), box-shadow var(--t-hover) var(--ease);
+}
+.auth-field input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-wash); }
+.auth-err { color: var(--up); font-size: var(--fs-label); background: var(--up-bg); padding: 8px 12px; border-radius: var(--r-md); }
+.auth-submit {
+  margin-top: 4px; padding: 12px; border: 0; border-radius: var(--r-md); cursor: pointer;
+  background: linear-gradient(145deg, var(--gold), var(--gold-deep)); color: var(--ink-on-gold);
+  font-family: var(--font-sans); font-size: var(--fs-body); font-weight: 700;
+  transition: transform var(--t-hover) var(--ease), box-shadow var(--t-hover) var(--ease);
+}
+.auth-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 18px var(--gold-wash); }
+.auth-submit:disabled { opacity: .6; cursor: default; transform: none; }

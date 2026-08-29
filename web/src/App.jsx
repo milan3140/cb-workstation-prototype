@@ -19,8 +19,8 @@ const LAYOUT_KEY = 'cbw_desktop_layout2'  // v2:收起寬預設改窄(到第三�
 // 乖離類指標(距轉換價/股債乖離)差距小=更貼近=更該看 → 首點升冪;其餘首點降冪
 const ASC_FIRST = new Set(['convDist', 'dev', 'devHero'])
 import { loadLocal, saveLocal, fetchRemote, pushRemote, makeList, MAX_LISTS } from './watchlists.js'
-import { restore as restoreGoogle, onAuthChange as onGoogleAuth, googleEnabled } from './sync/googleAuth.js'
-import GoogleSignIn from './sync/GoogleSignIn.jsx'
+import { currentUser as authUser, onAuthChange as onAuthChange2, authEnabled } from './sync/authClient.js'
+import AuthWidget from './sync/AuthWidget.jsx'
 
 const fmtDate = s => `${s.slice(0, 4)}/${s.slice(4, 6)}/${s.slice(6, 8)}`
 // 資料日落後天數(以資料日當天台北 16:00 起算);>4 天=超過正常週末間隔,視為更新中斷
@@ -52,12 +52,11 @@ const STRAT_FILTERS = {
 
 export default function App() {
   const auth = useAuth()                           // { user, logout, switchAccount }
-  const [gUser, setGUser] = useState(null)         // Google 登入者(分帳號雲端同步的身分)
-  useEffect(() => {                                // 還原上次 Google 登入 + 訂閱變化
-    if (!googleEnabled()) return undefined
-    const off = onGoogleAuth(setGUser)
-    restoreGoogle().then(setGUser).catch(() => {})
-    return off
+  const [gUser, setGUser] = useState(null)         // 自建帳號登入者(分帳號雲端同步的身分)
+  useEffect(() => {                                // 訂閱自建帳號登入狀態(初始從 localStorage 還原)
+    if (!authEnabled()) return undefined
+    setGUser(authUser())
+    return onAuthChange2(setGUser)
   }, [])
   const syncUser = auth.user || gUser              // 任一身分在 = 可雲端同步
   const [acctLoading, setAcctLoading] = useState(false)   // 切帳號期間全屏遮罩(避免看到上一個帳號資料)
@@ -547,10 +546,10 @@ export default function App() {
       )}
     </div>
   )
-  // 頁首帳號區(靠右):Google 登入(分帳號雲端同步入口)+ 既有 OIDC 選單
+  // 頁首帳號區(靠右):自建帳號登入 / 註冊(分帳號雲端同步入口)+ 既有 OIDC 選單
   const accountEl = (
     <div className="account-area">
-      {googleEnabled() && <GoogleSignIn user={gUser} />}
+      {authEnabled() && <AuthWidget user={gUser} />}
       {userMenuEl}
     </div>
   )

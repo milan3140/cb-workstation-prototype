@@ -1,25 +1,22 @@
-/* 分帳號雲端同步:打 Apps Script Web App(Google Sheet 為 DB),帶 Google ID token。
+/* 分帳號雲端同步:打 Apps Script Web App(Google Sheet 為 DB),帶自建帳號 token。
  *
  * 需要 VITE_SHEET_API_URL(Apps Script /exec 網址)。沒設 = 不啟用,呼叫端退回本地。
- * 身分來自 googleAuth(登入的 Google email);後端用 email 分帳號隔離。
+ * 身分來自 authClient(自建 email+密碼登入後拿到的 HMAC token);後端驗 token 取 email 分帳號隔離。
  *
  * CORS:Apps Script /exec 只吃「簡單請求」——GET(讀)與 POST + text/plain(寫)都免 preflight。
  */
-import { getFreshToken, googleEnabled } from './googleAuth.js'
+import { getToken, authEnabled } from './authClient.js'
 
 const API = String(import.meta.env.VITE_SHEET_API_URL || '').replace(/\/$/, '')
-export const sheetSyncEnabled = () => !!(API && googleEnabled())
+export const sheetSyncEnabled = () => !!(API && authEnabled())
 
-async function withToken() {
-  const t = await getFreshToken()
-  return t || null
-}
+async function withToken() { return getToken() }
 
-/* 讀:GET ?resource=...&id_token=...  回 JSON 或 null(未登入/失敗) */
+/* 讀:GET ?resource=...&token=...  回 JSON 或 null(未登入/失敗) */
 async function get(params, signal) {
   const token = await withToken()
   if (!token) return null
-  const q = new URLSearchParams({ ...params, id_token: token }).toString()
+  const q = new URLSearchParams({ ...params, token }).toString()
   try {
     const res = await fetch(`${API}?${q}`, { method: 'GET', signal, redirect: 'follow' })
     if (!res.ok) return null
@@ -31,7 +28,7 @@ async function get(params, signal) {
   }
 }
 
-/* 寫:POST text/plain JSON(含 id_token)。回 true/false */
+/* 寫:POST text/plain JSON(含 token)。回 true/false */
 async function post(payload) {
   const token = await withToken()
   if (!token) return false
@@ -39,7 +36,7 @@ async function post(payload) {
     const res = await fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // 簡單請求,免 preflight
-      body: JSON.stringify({ ...payload, id_token: token }),
+      body: JSON.stringify({ ...payload, token }),
       redirect: 'follow',
     })
     if (!res.ok) return false

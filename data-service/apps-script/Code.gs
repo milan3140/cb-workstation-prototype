@@ -1,146 +1,113 @@
 /**
- * CB 工作站原型 — Google Apps Script 共用後端(畫線 + 關注清單)
+ * ParityDesk — Apps Script 後端(自建帳號 + 分帳號畫線/關注)
  *
- * 為什麼用 Apps Script:這張 Sheet 掛在個人 Google 帳號,用 Apps Script 綁它就能讀寫,
- * 免服務帳號金鑰、免租主機、免 GCP 專案。發布成 Web App 後有一個固定 HTTPS 網址,
- * 前端直接打它,大家連同一份 → 畫線 / 關注清單跨裝置、跨使用者同步。
+ * 不依賴 Google 登入:自己的 email+密碼註冊/登入,後端簽發 HMAC token,
+ * 每個請求帶 token 驗證後用 email 當 key 分帳號讀寫 Google Sheet。
+ * 免服務帳號金鑰、免租主機。部署見同目錄 README.md。
  *
- * 部署見同目錄 README.md。部署後把 /exec 網址填進前端 VITE_SHEET_API_URL。
+ * ── Sheet 分頁 ──
+ *   users:      A=email | B=salt | C=hash(sha256(pw|salt)) | D=createdAt
+ *   drawings:   A=key(email|sid|period) | B=updatedAt | C..F=shapes JSON 分塊
+ *   watchlists: A=key(email)            | B=updatedAt | C..F=lists  JSON 分塊
  *
- * ── 分帳號(per-account):每個使用者的畫線 / 關注各存各的,互相看不到 ──
- *   身分 = Google 帳號 email。前端用 Google 登入拿到 ID token,每個請求帶上;
- *   後端用 Google 的 tokeninfo 端點驗證 token、取出 email 當 member key。
- *   token 無效 / 未帶 → 拒絕(不落到別人的資料上)。
- *
- *   分頁 drawings:   A=key(email|sid|period) | B=updatedAt(ms) | C,D,E,F=shapes JSON 分塊
- *   分頁 watchlists: A=key(email)            | B=updatedAt(ms) | C,D,E,F=lists JSON 分塊
- *   單格上限 5 萬字,故 JSON 切成 ≤4 塊(16 萬字,遠大於 500 shapes 需求)。
- *
- * ── API(單一 /exec 端點,GET 讀、POST 寫;都是「簡單請求」免 CORS preflight)──
- *   GET  ?resource=drawings&sid=<現股代號>&period=<週期>&id_token=<Google ID token>
- *          → {shapes:[...], updatedAt}
- *   GET  ?resource=watchlists&id_token=<...>                → {lists:[...], updatedAt}
- *   POST body(text/plain JSON){resource:'drawings', sid, period, shapes, id_token}  → {ok:true}
- *   POST body(text/plain JSON){resource:'watchlists', lists, id_token}              → {ok:true}
+ * ── API(單一 /exec;GET/POST + text/plain 皆免 CORS preflight)──
+ *   POST {action:'register', email, password}  → {token, email} | {error}
+ *   POST {action:'login',    email, password}  → {token, email} | {error}
+ *   GET  ?resource=drawings&sid=&period=&token=   → {shapes, updatedAt}
+ *   GET  ?resource=watchlists&token=              → {lists, updatedAt}
+ *   POST {resource:'drawings', sid, period, shapes, token}  → {ok}
+ *   POST {resource:'watchlists', lists, token}             → {ok}
+ *   GET  ?resource=health → {ok}
  */
 
 var SHEET_ID = '1QMKeXQlnG2-QHBWxGgW0VyTjXxA1M_PNiyws4CjZCSo';
-// 允許的 OAuth Client ID(前端 GIS 用的那個)。部署後填入,驗 token 的 aud 必須等於它。
-var ALLOWED_CLIENT_ID = '316755433521-ung84br43co07sv0d1h63c7gihsheni1.apps.googleusercontent.com';     // e.g. '1234-abc.apps.googleusercontent.com'
-var CHUNK = 45000;              // 單格字數(<5 萬安全值)
-var CHUNK_COLS = 4;            // C,D,E,F
-
-/** 驗 Google token → 回 email(失敗回 null)。相容 access token 與 id token 兩種(前端用 access token)。 */
-function verifyEmail_(token) {
-  if (!token) return null;
-  var eps = [
-    'https://oauth2.googleapis.com/tokeninfo?access_token=',
-    'https://oauth2.googleapis.com/tokeninfo?id_token=',
-  ];
-  for (var i = 0; i < eps.length; i++) {
-    try {
-      var resp = UrlFetchApp.fetch(eps[i] + encodeURIComponent(token), { muteHttpExceptions: true });
-      if (resp.getResponseCode() !== 200) continue;
-      var info = JSON.parse(resp.getContentText());
-      var aud = info.aud || info.azp;
-      if (ALLOWED_CLIENT_ID && aud !== ALLOWED_CLIENT_ID) continue;   // 只認自己的 client
-      if (!info.email) continue;
-      if (info.email_verified !== undefined &&
-          String(info.email_verified) !== 'true' && info.email_verified !== true) continue;
-      return info.email;
-    } catch (e) { /* try next */ }
-  }
-  return null;
-}
+var CHUNK = 45000, CHUNK_COLS = 4;
+var TOKEN_TTL_MS = 30 * 24 * 3600 * 1000;   // token 30 天
 
 function ss_() { return SpreadsheetApp.openById(SHEET_ID); }
+function tab_(name) { var ss = ss_(); return ss.getSheetByName(name) || ss.insertSheet(name); }
 
-function tab_(name) {
-  var ss = ss_();
-  var sh = ss.getSheetByName(name);
-  if (!sh) { sh = ss.insertSheet(name); }
-  return sh;
+// ── token 密鑰:存 Script Properties,首次自動生成(不寫進原始碼)──
+function secret_() {
+  var sp = PropertiesService.getScriptProperties();
+  var s = sp.getProperty('TOKEN_SECRET');
+  if (!s) { s = Utilities.getUuid() + Utilities.getUuid(); sp.setProperty('TOKEN_SECRET', s); }
+  return s;
 }
+function b64_(bytes) { return Utilities.base64EncodeWebSafe(bytes).replace(/=+$/, ''); }
+function b64str_(str) { return b64_(Utilities.newBlob(str).getBytes()); }
+function hmac_(msg) { return b64_(Utilities.computeHmacSha256Signature(msg, secret_())); }
+function sha256_(msg) { return b64_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, msg)); }
 
-function splitJson_(obj) {
-  var s = JSON.stringify(obj);
-  var parts = [];
-  for (var i = 0; i < s.length; i += CHUNK) parts.push(s.slice(i, i + CHUNK));
-  while (parts.length < CHUNK_COLS) parts.push('');
-  return parts.slice(0, CHUNK_COLS);
+function makeToken_(email) {
+  var body = email + '|' + (Date.now() + TOKEN_TTL_MS);
+  return b64str_(body) + '.' + hmac_(body);
 }
-function joinJson_(cells) {
-  var s = (cells || []).join('');
-  if (!s) return null;
-  try { return JSON.parse(s); } catch (e) { return null; }
-}
-
-function findRow_(sh, key) {
-  var last = sh.getLastRow();
-  if (last < 1) return 0;
-  var keys = sh.getRange(1, 1, last, 1).getValues();
-  for (var i = 0; i < keys.length; i++) if (String(keys[i][0]) === key) return i + 1;
-  return 0;
-}
-
-function readRecord_(tabName, key) {
-  var sh = tab_(tabName);
-  var row = findRow_(sh, key);
-  if (!row) return { data: null, updatedAt: null };
-  var vals = sh.getRange(row, 2, 1, 1 + CHUNK_COLS).getValues()[0]; // B..F
-  return { data: joinJson_(vals.slice(1)), updatedAt: vals[0] || null };
+function verifyToken_(token) {
+  if (!token || token.indexOf('.') < 0) return null;
+  try {
+    var parts = token.split('.'); var body = Utilities.newBlob(Utilities.base64DecodeWebSafe(parts[0])).getDataAsString();
+    if (hmac_(body) !== parts[1]) return null;                 // 簽章不符
+    var seg = body.split('|'); if (Number(seg[1]) < Date.now()) return null;   // 過期
+    return seg[0];                                             // email
+  } catch (e) { return null; }
 }
 
-function writeRecord_(tabName, key, obj) {
-  var sh = tab_(tabName);
-  var row = findRow_(sh, key);
-  if (!row) row = sh.getLastRow() + 1 || 1;
-  var parts = splitJson_(obj);
-  sh.getRange(row, 1, 1, 2 + CHUNK_COLS).setValues([[key, Date.now()].concat(parts)]);
+// ── users 表 ──
+function normEmail_(e) { return String(e || '').trim().toLowerCase(); }
+function findUser_(email) {
+  var sh = tab_('users'); var last = sh.getLastRow(); if (last < 1) return null;
+  var rows = sh.getRange(1, 1, last, 3).getValues();
+  for (var i = 0; i < rows.length; i++) if (normEmail_(rows[i][0]) === email) return { row: i + 1, salt: rows[i][1], hash: rows[i][2] };
+  return null;
+}
+function register_(email, pw) {
+  email = normEmail_(email);
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: 'email 格式不正確' };
+  if (String(pw || '').length < 6) return { error: '密碼至少 6 碼' };
+  if (findUser_(email)) return { error: '此 email 已註冊,請直接登入' };
+  var salt = Utilities.getUuid();
+  tab_('users').appendRow([email, salt, sha256_(pw + '|' + salt), Date.now()]);
+  return { token: makeToken_(email), email: email };
+}
+function login_(email, pw) {
+  email = normEmail_(email);
+  var u = findUser_(email);
+  if (!u || u.hash !== sha256_(pw + '|' + u.salt)) return { error: 'email 或密碼錯誤' };
+  return { token: makeToken_(email), email: email };
 }
 
-function json_(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
-}
+// ── JSON 分塊存取 ──
+function splitJson_(obj) { var s = JSON.stringify(obj), a = []; for (var i = 0; i < s.length; i += CHUNK) a.push(s.slice(i, i + CHUNK)); while (a.length < CHUNK_COLS) a.push(''); return a.slice(0, CHUNK_COLS); }
+function joinJson_(cells) { var s = (cells || []).join(''); if (!s) return null; try { return JSON.parse(s); } catch (e) { return null; } }
+function findRow_(sh, key) { var last = sh.getLastRow(); if (last < 1) return 0; var ks = sh.getRange(1, 1, last, 1).getValues(); for (var i = 0; i < ks.length; i++) if (String(ks[i][0]) === key) return i + 1; return 0; }
+function readRecord_(tabName, key) { var sh = tab_(tabName), row = findRow_(sh, key); if (!row) return { data: null, updatedAt: null }; var v = sh.getRange(row, 2, 1, 1 + CHUNK_COLS).getValues()[0]; return { data: joinJson_(v.slice(1)), updatedAt: v[0] || null }; }
+function writeRecord_(tabName, key, obj) { var sh = tab_(tabName), row = findRow_(sh, key) || (sh.getLastRow() + 1 || 1); sh.getRange(row, 1, 1, 2 + CHUNK_COLS).setValues([[key, Date.now()].concat(splitJson_(obj))]); }
+
+function json_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
   try {
-    if (p.resource === 'health') return json_({ ok: true, service: 'cb-workstation per-account backend' });
-    var email = verifyEmail_(p.id_token);
+    if (p.resource === 'health') return json_({ ok: true, service: 'ParityDesk backend' });
+    var email = verifyToken_(p.token);
     if (!email) return json_({ error: 'unauthorized' });
-    if (p.resource === 'drawings') {
-      var rec = readRecord_('drawings', email + '|' + String(p.sid) + '|' + String(p.period));
-      return json_({ shapes: (rec.data && rec.data.shapes) || [], updatedAt: rec.updatedAt });
-    }
-    if (p.resource === 'watchlists') {
-      var rec2 = readRecord_('watchlists', email);
-      return json_({ lists: (rec2.data && rec2.data.lists) || [], updatedAt: rec2.updatedAt });
-    }
+    if (p.resource === 'drawings') { var r = readRecord_('drawings', email + '|' + String(p.sid) + '|' + String(p.period)); return json_({ shapes: (r.data && r.data.shapes) || [], updatedAt: r.updatedAt }); }
+    if (p.resource === 'watchlists') { var r2 = readRecord_('watchlists', email); return json_({ lists: (r2.data && r2.data.lists) || [], updatedAt: r2.updatedAt }); }
     return json_({ error: 'unknown resource' });
-  } catch (err) {
-    return json_({ error: String(err) });
-  }
+  } catch (err) { return json_({ error: String(err) }); }
 }
 
 function doPost(e) {
   var body = {};
   try { body = JSON.parse((e && e.postData && e.postData.contents) || '{}'); } catch (x) {}
   try {
-    var email = verifyEmail_(body.id_token);
+    if (body.action === 'register') return json_(register_(body.email, body.password));
+    if (body.action === 'login') return json_(login_(body.email, body.password));
+    var email = verifyToken_(body.token);
     if (!email) return json_({ error: 'unauthorized' });
-    if (body.resource === 'drawings') {
-      writeRecord_('drawings', email + '|' + String(body.sid) + '|' + String(body.period),
-        { shapes: Array.isArray(body.shapes) ? body.shapes.slice(0, 500) : [] });
-      return json_({ ok: true });
-    }
-    if (body.resource === 'watchlists') {
-      writeRecord_('watchlists', email, { lists: Array.isArray(body.lists) ? body.lists.slice(0, 10) : [] });
-      return json_({ ok: true });
-    }
+    if (body.resource === 'drawings') { writeRecord_('drawings', email + '|' + String(body.sid) + '|' + String(body.period), { shapes: Array.isArray(body.shapes) ? body.shapes.slice(0, 500) : [] }); return json_({ ok: true }); }
+    if (body.resource === 'watchlists') { writeRecord_('watchlists', email, { lists: Array.isArray(body.lists) ? body.lists.slice(0, 10) : [] }); return json_({ ok: true }); }
     return json_({ error: 'unknown resource' });
-  } catch (err) {
-    return json_({ error: String(err) });
-  }
+  } catch (err) { return json_({ error: String(err) }); }
 }

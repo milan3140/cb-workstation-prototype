@@ -182,6 +182,12 @@
 
 ## 11. 登入(OIDC)
 
+> **注意:展示站實際走的是另一條「已接、可用」的登入路徑** —— 自建 email+密碼帳號
+> (`web/src/sync/authClient.js` + `AuthWidget.jsx` + Apps Script 後端 register/login),
+> 設 `VITE_SHEET_API_URL` 即啟用,分帳號存畫線/關注。詳見 `openspec/specs/auth/spec.md`
+> 與 `data-service/apps-script/README.md`。**本節與 #12/#13 描述的是另一條可選的正式路徑**
+> (標準 OIDC + FastAPI + 服務帳號),原型未接、供日後接自建後端時參考,與上面那條互斥擇一。
+
 **假到什麼程度**:**未接**。`web/src/auth/config.js` 現在完全由環境變數驅動,
 `VITE_OIDC_AUTHORITY`/`VITE_OIDC_CLIENT_ID` 沒設 → `OIDC_CONFIGURED=false` →
 不啟用登入牆,全站以 guest 運作。登入 UI 本身可預覽:網址加 `?gate=preview`。
