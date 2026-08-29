@@ -832,7 +832,7 @@ export default function KLinePanel({ row, focusMode = false, onFocusModeChange, 
       link.download = `${row.stkCode}-${period}-kline.png`
       link.click()
     }
-    // 右上角浮水印:Signal logo + 「訊號王的型態學教室 × CB 策略」
+    // 右上角浮水印:品牌字標
     const drawWatermark = (ctx, W, H, logo) => {
       const s = Math.round(Math.max(28, Math.min(W, H) * 0.05))     // 去背 logo 邊長
       const fs = Math.round(s * 0.62)
@@ -840,9 +840,9 @@ export default function KLinePanel({ row, focusMode = false, onFocusModeChange, 
       const pad = Math.round(W * 0.014) + 8
       // 官方設計字體(font-display)+ 金色 ×(對齊左上角字標風格)
       const parts = [
-        { t: '訊號王的型態學教室 ', c: 'rgba(236, 236, 238, .95)' },
+        { t: 'CB WORKSTATION ', c: 'rgba(236, 236, 238, .95)' },
         { t: '×', c: '#D8DBE0' },
-        { t: ' CB 策略', c: 'rgba(236, 236, 238, .95)' },
+        { t: ' PROTOTYPE', c: 'rgba(236, 236, 238, .95)' },
       ]
       ctx.save()
       ctx.font = `600 ${fs}px "Cormorant Garamond", "Noto Serif TC", Georgia, serif`

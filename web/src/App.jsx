@@ -72,9 +72,9 @@ export default function App() {
   const activeList = useMemo(() => lists.find(l => l.id === activeListId) || lists[0], [lists, activeListId])
   const activeCodes = useMemo(() => new Set(activeList?.codes || []), [activeList])
   const pushTimer = useRef()
-  const commitLists = next => {   // 本地即存;登入時 debounce 整包 PUT 到後端
+  const commitLists = next => {   // 本地即存;debounce 整包推後端(未登入時 pushRemote 自己 no-op,不必在這裡 gate)
     setLists(next); saveLocal(next)
-    if (syncUser) { clearTimeout(pushTimer.current); pushTimer.current = setTimeout(() => pushRemote(next), 600) }
+    clearTimeout(pushTimer.current); pushTimer.current = setTimeout(() => pushRemote(next), 600)
   }
   const toggleWatch = useCallback(code => {   // 加/移到「目前這份」清單(useCallback:DataTable memo 依賴穩定 props)
     const cur = lists.find(l => l.id === activeListId) || lists[0]
