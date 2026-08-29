@@ -1353,3 +1353,16 @@ td.stratcol { padding-top: 11px; padding-bottom: 11px }
 .acct-menu button:hover { background: var(--surface-3); }
 .acct-menu .acct-menu-out { color: var(--ink-mid); }
 .acct-menu .acct-menu-out:hover { color: var(--up); background: var(--up-bg); }
+
+/* 切帳號全屏遮罩(避免看到上一個帳號資料) */
+.acct-loading {
+  position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center;
+  gap: 14px; flex-direction: column; color: var(--ink-mid); font-family: var(--font-sans); font-size: var(--fs-body);
+  background: var(--l0); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.acct-spin {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 3px solid var(--line-strong); border-top-color: var(--gold);
+  animation: acct-spin .8s linear infinite;
+}
+@keyframes acct-spin { to { transform: rotate(360deg); } }

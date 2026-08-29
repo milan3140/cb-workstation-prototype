@@ -60,6 +60,7 @@ export default function App() {
     return off
   }, [])
   const syncUser = auth.user || gUser              // 任一身分在 = 可雲端同步
+  const [acctLoading, setAcctLoading] = useState(false)   // 切帳號期間全屏遮罩(避免看到上一個帳號資料)
   const [userMenu, setUserMenu] = useState(false)  // 右上使用者選單開合
   const [data, setData] = useState(null)          // {today, rows}
   const [stratId, setStratId] = useState('pick')  // 底部導覽:精選訊號(預設)/全市場/我的關注
@@ -321,7 +322,13 @@ export default function App() {
       setLists(fresh); saveLocal(fresh); setActiveListId(fresh[0].id)
       return undefined
     }
-    // 登入 / 換帳號 → 抓「這個帳號」的雲端正本
+    // 換帳號(A→B):立即刷掉 A 的清單 + 開全屏遮罩,直到 B 的資料載入(訪客→首登不清,要帶清單上雲)
+    if (wasSignedIn) {
+      const blank = [makeList('我的關注')]
+      setLists(blank); saveLocal(blank); setActiveListId(blank[0].id)
+      setAcctLoading(true)
+    }
+    // 抓「這個帳號」的雲端正本
     const ac = new AbortController()
     fetchRemote(ac.signal).then(remote => {
       let next
@@ -335,8 +342,8 @@ export default function App() {
       }
       setLists(next); saveLocal(next)
       setActiveListId(a => next.some(l => l.id === a) ? a : next[0].id)
-    }).catch(() => {})
-    return () => ac.abort()
+    }).catch(() => {}).finally(() => setAcctLoading(false))
+    return () => { ac.abort(); setAcctLoading(false) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gUser, auth.user])
 
@@ -689,7 +696,8 @@ export default function App() {
     )
     return (
       <div className={`app dws${isTablet ? ' dws--two' : ''}`}>
-        <div className="dws-top">
+        {acctLoading && (<div className="acct-loading" role="status"><span className="acct-spin" aria-hidden /><span>載入帳號資料…</span></div>)}
+                <div className="dws-top">
           <div className="brand">
             <span className="brand-badge" aria-hidden><img src={brandDiamond} alt="" /></span>
             <span className="brand-word">Parity<i>·</i>Desk</span>
@@ -837,6 +845,8 @@ export default function App() {
   // ── 手機/窄版:現行版面(凍結不動)──
   return (
     <div className="app">
+      {acctLoading && (<div className="acct-loading" role="status"><span className="acct-spin" aria-hidden /><span>載入帳號資料…</span></div>)}
+        
       {/* ── 第 1 列:品牌字標 ── */}
       <div className="bar1">
         <div className="brand">
