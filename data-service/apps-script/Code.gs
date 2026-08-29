@@ -26,23 +26,31 @@
 
 var SHEET_ID = '1QMKeXQlnG2-QHBWxGgW0VyTjXxA1M_PNiyws4CjZCSo';
 // 允許的 OAuth Client ID(前端 GIS 用的那個)。部署後填入,驗 token 的 aud 必須等於它。
-var ALLOWED_CLIENT_ID = '';     // e.g. '1234-abc.apps.googleusercontent.com'
+var ALLOWED_CLIENT_ID = '316755433521-ung84br43co07sv0d1h63c7gihsheni1.apps.googleusercontent.com';     // e.g. '1234-abc.apps.googleusercontent.com'
 var CHUNK = 45000;              // 單格字數(<5 萬安全值)
 var CHUNK_COLS = 4;            // C,D,E,F
 
-/** 驗 Google ID token → 回 email(失敗回 null)。用 Google 公開 tokeninfo 端點。 */
-function verifyEmail_(idToken) {
-  if (!idToken) return null;
-  try {
-    var resp = UrlFetchApp.fetch(
-      'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken),
-      { muteHttpExceptions: true });
-    if (resp.getResponseCode() !== 200) return null;
-    var info = JSON.parse(resp.getContentText());
-    if (ALLOWED_CLIENT_ID && info.aud !== ALLOWED_CLIENT_ID) return null;   // 只認自己的 client
-    if (String(info.email_verified) !== 'true' && info.email_verified !== true) return null;
-    return info.email || null;
-  } catch (e) { return null; }
+/** 驗 Google token → 回 email(失敗回 null)。相容 access token 與 id token 兩種(前端用 access token)。 */
+function verifyEmail_(token) {
+  if (!token) return null;
+  var eps = [
+    'https://oauth2.googleapis.com/tokeninfo?access_token=',
+    'https://oauth2.googleapis.com/tokeninfo?id_token=',
+  ];
+  for (var i = 0; i < eps.length; i++) {
+    try {
+      var resp = UrlFetchApp.fetch(eps[i] + encodeURIComponent(token), { muteHttpExceptions: true });
+      if (resp.getResponseCode() !== 200) continue;
+      var info = JSON.parse(resp.getContentText());
+      var aud = info.aud || info.azp;
+      if (ALLOWED_CLIENT_ID && aud !== ALLOWED_CLIENT_ID) continue;   // 只認自己的 client
+      if (!info.email) continue;
+      if (info.email_verified !== undefined &&
+          String(info.email_verified) !== 'true' && info.email_verified !== true) continue;
+      return info.email;
+    } catch (e) { /* try next */ }
+  }
+  return null;
 }
 
 function ss_() { return SpreadsheetApp.openById(SHEET_ID); }

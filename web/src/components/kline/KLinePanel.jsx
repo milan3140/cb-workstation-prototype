@@ -840,9 +840,9 @@ export default function KLinePanel({ row, focusMode = false, onFocusModeChange, 
       const pad = Math.round(W * 0.014) + 8
       // 官方設計字體(font-display)+ 金色 ×(對齊左上角字標風格)
       const parts = [
-        { t: 'CB WORKSTATION ', c: 'rgba(236, 236, 238, .95)' },
+        { t: 'ParityDesk ', c: 'rgba(236, 236, 238, .95)' },
         { t: '×', c: '#D8DBE0' },
-        { t: ' PROTOTYPE', c: 'rgba(236, 236, 238, .95)' },
+        { t: '', c: 'rgba(236, 236, 238, .95)' },
       ]
       ctx.save()
       ctx.font = `600 ${fs}px "Cormorant Garamond", "Noto Serif TC", Georgia, serif`

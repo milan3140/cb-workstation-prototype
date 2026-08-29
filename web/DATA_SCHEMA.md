@@ -1,4 +1,4 @@
-# SIGNAL CB 雷達 — Data Schema(資料契約真相源)
+# ParityDesk — Data Schema(資料契約真相源)
 
 > 維護鏈:**資料集 + 附加資訊(AddInfo/author-api StockCalculation)→ `webapp/build_raw.py` → `_fresh_raw.json`(=本站 `public/raw.json`)→ 前端 `enrich()` 衍生 → UI 欄位**。
 > 改任何一環先對照本檔;改欄位=同步改 build_raw.py、logic.js `enrich()`、本檔三處。

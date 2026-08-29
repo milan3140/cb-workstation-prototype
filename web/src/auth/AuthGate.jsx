@@ -24,7 +24,7 @@ function GateWall ({ busy, onLogin }) {
         backdropFilter: 'blur(14px)', boxShadow: '0 18px 60px rgba(0,0,0,.45)',
       }}>
         <div style={{ fontSize: 13, letterSpacing: '.35em', color: 'var(--gold)', fontWeight: 700 }}>SIGNAL STOCK STUDIO</div>
-        <h1 style={{ color: 'var(--ink-hi)', fontSize: 26, margin: '14px 0 6px' }}>CB 工作站原型</h1>
+        <h1 style={{ color: 'var(--ink-hi)', fontSize: 26, margin: '14px 0 6px' }}>ParityDesk</h1>
         <p style={{ color: 'var(--ink-mid)', fontSize: 14, lineHeight: 1.8, margin: '0 0 28px' }}>
           本工具為課程使用者專屬。<br />請以 資料來源方 帳號登入後使用。
         </p>

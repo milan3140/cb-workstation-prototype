@@ -471,7 +471,7 @@ export const STRATS = [
   {
     id: 'pick', label: '精選訊號', flagship: true,
     cond: '型態學精選(近轉換價+型態)＋ 各型態訊號',
-    text: '本原型的型態雷達:現股逼近轉換價、且走出型態訊號(型態A/型態B/型態C/型態D/型態E)的 CB。點型態 chip 切換。',
+    text: '本原型的型態精選:現股逼近轉換價、且走出型態訊號(型態A/型態B/型態C/型態D/型態E)的 CB。點型態 chip 切換。',
     desc: FIRE_DESC,
     chips: PICK_CHIPS,
     cols: LIST_COLS,

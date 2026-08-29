@@ -308,22 +308,37 @@ export default function App() {
     fetchData('history.json').then(r => r.json()).then(setHistory).catch(() => setHistory(null))
   }, [])
 
-  useEffect(() => {   // 登入後合併:後端(有股票的清單)為正本 + 本地獨有的清單(尤其還沒加股票的空清單,後端不建群組)保留
-    if (!syncUser) return undefined
+  // 帳號身分變更 → 清單分帳號正確切換(避免看到上一個帳號的資料)
+  const prevAcctRef = useRef(undefined)
+  useEffect(() => {
+    const email = gUser?.email || auth.user?.nickname || null
+    if (prevAcctRef.current === email) return undefined
+    const wasSignedIn = !!prevAcctRef.current   // 之前是否有登入身分(用來分辨 訪客→登入 vs 換帳號)
+    prevAcctRef.current = email
+
+    if (!email) {   // 登出 → 清成全新訪客空清單,不留上一個帳號的資料
+      const fresh = [makeList('我的關注')]
+      setLists(fresh); saveLocal(fresh); setActiveListId(fresh[0].id)
+      return undefined
+    }
+    // 登入 / 換帳號 → 抓「這個帳號」的雲端正本
     const ac = new AbortController()
     fetchRemote(ac.signal).then(remote => {
-      if (!remote) return
-      const rnames = new Set(remote.map(l => l.name))
-      const localExtra = lists.filter(l => !rnames.has(l.name))   // 本地有、後端沒有的(空清單/離線期間新增)
-      let merged = [...remote, ...localExtra]
-      if (!merged.length) merged = [makeList('我的關注')]
-      setLists(merged); saveLocal(merged)
-      setActiveListId(a => merged.some(l => l.id === a) ? a : merged[0].id)
-      if (localExtra.some(l => l.codes.length)) pushRemote(merged)   // 本地獨有且有股票 → 補推同步
+      let next
+      if (remote && remote.length) {
+        next = remote                                   // 該帳號雲端有 → 用它
+      } else if (!wasSignedIn && lists.some(l => l.codes.length)) {
+        next = lists                                    // 訪客→首次登入且雲端空 → 帶訪客清單上雲
+        pushRemote(next)
+      } else {
+        next = [makeList('我的關注')]                     // 換帳號到空帳號 → 全新空清單(不留舊帳號)
+      }
+      setLists(next); saveLocal(next)
+      setActiveListId(a => next.some(l => l.id === a) ? a : next[0].id)
     }).catch(() => {})
     return () => ac.abort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.user])
+  }, [gUser, auth.user])
 
   useEffect(() => {
     const URL = import.meta.env.VITE_QUOTES_URL || '/api/quotes.json'
@@ -525,8 +540,13 @@ export default function App() {
       )}
     </div>
   )
-  // 頁首帳號區:Google 登入(分帳號雲端同步入口)+ 既有 OIDC 選單
-  const accountEl = <>{googleEnabled() && <GoogleSignIn user={gUser} />}{userMenuEl}</>
+  // 頁首帳號區(靠右):Google 登入(分帳號雲端同步入口)+ 既有 OIDC 選單
+  const accountEl = (
+    <div className="account-area">
+      {googleEnabled() && <GoogleSignIn user={gUser} />}
+      {userMenuEl}
+    </div>
+  )
   const indW = Math.max(16, tabInd.w - 24)   // 底線=tab 寬置中內縮 12px 兩側
   const tabsNav = (
     <nav className="tabs" role="tablist" aria-label="策略切換" ref={tabsNavRef}>
@@ -672,7 +692,7 @@ export default function App() {
         <div className="dws-top">
           <div className="brand">
             <span className="brand-badge" aria-hidden><img src={brandDiamond} alt="" /></span>
-            <span className="brand-word">CB<i>×</i>STOCK<i>×</i>WORKSTATION</span>
+            <span className="brand-word">Parity<i>·</i>Desk</span>
           </div>
           {accountEl}
         </div>
@@ -749,14 +769,14 @@ export default function App() {
                         </div>
                         <div className="dws-split">
                           <div className="dws-split-pane" style={{ flex: `0 0 calc(${(splitRatio * 100).toFixed(2)}% - 4px)` }}>
-                            <KLinePanel key={`${curRow.stkCode}:s`} row={curRow} focusMode={false} fixedTrack="stock"
+                            <KLinePanel key={`${gUser?.email||auth.user?.nickname||'guest'}:${curRow.stkCode}:s`} row={curRow} focusMode={false} fixedTrack="stock"
                               syncBus={bus} syncRole="lead" hideControls hideToolbar axisSide="left"
                               onFocusModeChange={() => {}} onShowDetails={() => {}} />
                           </div>
                           <div className="dws-split-sep" role="separator" aria-orientation="vertical"
                             aria-label="拖動調整兩圖比例" onPointerDown={dragSplitSep} />
                           <div className="dws-split-pane">
-                            <KLinePanel key={`${curRow.code}:c`} row={curRow} focusMode={false} fixedTrack="cb"
+                            <KLinePanel key={`${gUser?.email||auth.user?.nickname||'guest'}:${curRow.code}:c`} row={curRow} focusMode={false} fixedTrack="cb"
                               syncBus={bus} syncRole="follow" hideControls hideToolbar
                               onFocusModeChange={() => {}} onShowDetails={() => {}} />
                           </div>
@@ -765,7 +785,7 @@ export default function App() {
                     )
                   })()
                 ) : (
-                  <KLinePanel key={curRow.stkCode} row={curRow} focusMode={false}
+                  <KLinePanel key={`${gUser?.email||auth.user?.nickname||'guest'}:${curRow.stkCode}`} row={curRow} focusMode={false}
                     splitControl={{ active: false, onToggle: toggleSplit }}
                     onFocusModeChange={() => {}} onShowDetails={() => {}} />
                 )}
@@ -821,7 +841,7 @@ export default function App() {
       <div className="bar1">
         <div className="brand">
           <span className="brand-badge" aria-hidden><img src={brandDiamond} alt="" /></span>
-          <span className="brand-word">CB<i>×</i>STOCK<i>×</i>WORKSTATION</span>
+          <span className="brand-word">Parity<i>·</i>Desk</span>
         </div>
         {accountEl}
       </div>

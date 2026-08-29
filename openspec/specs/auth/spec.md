@@ -1,49 +1,40 @@
-# auth — OIDC 登入與 auth-gate
+# auth — 登入與分帳號身分
 
 ## Purpose
 
-以標準 OIDC 取得會員身分:一是決定誰能取用資料 API,二是當 watchlist / drawings
-的隔離鍵(每個會員只看得到自己的清單與畫線)。
+以 Google 登入取得使用者身分(email),作為畫線 / 關注清單「分帳號」隔離的 key —— 每個人各存各的,互相看不到。原型內建這條(見 [PROTOTYPE_TRUTH.md](../../../PROTOTYPE_TRUTH.md) #11/#12);另保留一條舊的 OIDC 資料 API 路徑供接自建後端時用。
 
 ## Requirements
 
-### R1: 登入流程
-前端走標準 OIDC(authorization code + PKCE,`oidc-client-ts`),取得 access_token(JWT)。
-設定全部由環境變數驅動(`web/src/auth/config.js`):`VITE_OIDC_AUTHORITY`、
-`VITE_OIDC_CLIENT_ID`、選填 `VITE_OIDC_SERVICE_PATH`。
+### R1: Google 登入(自訂 UI)
+用 GIS OAuth2 token client(`web/src/sync/googleAuth.js`):**我們自己的登入按鈕**(非 Google 制式 widget),點了才彈 Google 帳號選擇 → 取 access token → 打 userinfo 取 email。access token 隨每次同步請求送給後端驗證。需 `VITE_GOOGLE_CLIENT_ID`。
 
-#### Scenario: 未設定 OIDC(原型預設)
-- WHEN `VITE_OIDC_AUTHORITY` 或 `VITE_OIDC_CLIENT_ID` 任一未設
-- THEN `OIDC_CONFIGURED=false`,不啟用登入牆,全站以 guest 運作
-- AND 個人化功能退回本地儲存,UI 標示「已儲存在此裝置」(不是靜默失敗)
+#### Scenario: 未設定
+- WHEN `VITE_GOOGLE_CLIENT_ID` 未設 → 登入區不顯示,畫線/關注退回本地(不同步)
 
-#### Scenario: 登入牆
-- WHEN OIDC 設定完成且 `VITE_REQUIRE_LOGIN=true`
-- THEN 未登入者被 `AuthGate` 擋在登入頁
-- AND 網址加 `?gate=preview` 可預覽登入牆 UI 而不觸發真實 OIDC 流程
+#### Scenario: 已登入顯示
+- WHEN 登入成功 → 頁首右側顯示帳號膠囊(人像 icon + email),整顆可點 → 下拉選單「換帳號 / 登出」
 
-### R2: 後端驗證
-`CBW_REQUIRE_AUTH=true` 時,所有 `/api/*` 掛 JWT 驗證(PyJWT + JWKS 快取):
-驗 iss(`CBW_OIDC_ISS`)/ aud(`CBW_OIDC_AUD`)/ exp(容差 `CBW_OIDC_LEEWAY`)。
-`/healthz` 一律免驗(監控要打得到)。
+### R2: 後端驗證(分帳號)
+後端(Apps Script,見 `data-service/apps-script/`)用 Google tokeninfo 驗證 token(相容 access token / id token),檢查 `aud == VITE_GOOGLE_CLIENT_ID` 與 email_verified,取出 email 當 member key。token 無效 → `unauthorized`,碰不到任何人的資料。
 
-#### Scenario: 不驗證模式(本機開發)
-- WHEN `CBW_REQUIRE_AUTH=false`
-- THEN `/api/*` 直接開放,個人化資料掛在 `CBW_DEV_MEMBER_ID` 這個假會員底下
-- AND 此模式**僅適合本機**:沒有身分隔離
+### R3: 所有登入狀態都要正確
+| 狀態 | 行為 |
+|---|---|
+| 未登入(訪客) | 畫線/關注只存本機;顯示登入按鈕 |
+| 登入成功 | 抓「該帳號」雲端正本、取代目前清單;畫線改讀該帳號雲端(KLinePanel key 帶 email,換帳號自動重載) |
+| 訪客→首次登入 | 訪客本地清單若非空且雲端空 → 帶上雲(不遺失);否則用雲端 |
+| 換帳號(A→B) | **清掉 A 的資料**,載入 B 的雲端(不得殘留上一個帳號的清單/畫線) |
+| 登出 | 清成全新訪客空清單(不留上一個帳號資料) |
+| 點登入但取消 / 關掉彈窗 | 按鈕解除 busy、可再次點(不得卡死);靠 token client 的 error_callback + 安全逾時保證 Promise 必 resolve |
 
-### R3: guest 與登入的行為差異
-| | 未登入(guest) | 已登入 |
-|---|---|---|
-| 瀏覽清單/K線/明細 | 可(依部署設定) | 可 |
-| 關注清單 | localStorage,單裝置 | 後端儲存,跨裝置 |
-| 畫線 | IndexedDB,單裝置 | 後端儲存,跨裝置 |
+### R4: 舊 OIDC 路徑(選配)
+設 `VITE_OIDC_*` 可改走標準 OIDC + 自建資料 API(`CBW_REQUIRE_AUTH` 後端驗 JWT)。與 Google 登入互斥擇一;原型預設走 Google。
 
 ## Out of scope
-- 自建帳號體系、註冊流程、密碼管理(交給 IdP)
-- refresh token 輪替策略(依所選 IdP 的既有機制)
+- 自建帳號體系、註冊、密碼管理(交給 Google)
+- refresh token 長期輪替(access token 過期時靜默重取一張)
 
-## 已知缺口
-- IdP 若未提供 `.well-known/openid-configuration`,需在 `auth/oidc.js` 手動配置 metadata。
-- 原型未內建測試用的取 token 腳本(不同 IdP 的直取流程差異大);
-  請用你的 IdP 官方方式取測試 token,勿把憑證寫進 repo 或 CI 設定。
+## 已知限制
+- OAuth app 測試模式會顯示「未驗證」提示(自建 app 正常);要正式公開需送 Google 驗證或加測試使用者。
+- access token 短命(~1hr),不落地儲存;localStorage 只留 email 提示,過期時靜默重取。
